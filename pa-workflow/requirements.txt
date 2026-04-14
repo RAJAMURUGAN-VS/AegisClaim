@@ -1,0 +1,17 @@
+# Python dependencies
+# Frameworks
+fastapi
+uvicorn
+langgraph
+
+# Database
+psycopg2-binary
+pymongo
+redis
+
+# AWS
+boto3
+
+# Testing
+pytest
+httpx
