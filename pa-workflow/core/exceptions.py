@@ -13,3 +13,7 @@ class PolicyRuleNotFoundException(Exception):
 class ComplianceCheckException(Exception):
     """Custom exception for errors during a compliance check."""
     pass
+
+class FraudDetectionException(Exception):
+    """Custom exception for errors during fraud detection."""
+    pass
