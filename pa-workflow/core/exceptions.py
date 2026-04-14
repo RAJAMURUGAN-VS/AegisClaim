@@ -17,3 +17,11 @@ class ComplianceCheckException(Exception):
 class FraudDetectionException(Exception):
     """Custom exception for errors during fraud detection."""
     pass
+
+class AuthCodeGenerationException(Exception):
+    """Raised when an authorization code cannot be uniquely generated."""
+    pass
+
+class ScoringException(Exception):
+    """Raised for general errors during the scoring and decision process."""
+    pass
