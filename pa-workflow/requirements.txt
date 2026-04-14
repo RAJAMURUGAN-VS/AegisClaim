@@ -3,11 +3,16 @@
 fastapi
 uvicorn
 langgraph
+pydantic-settings
 
 # Database
 psycopg2-binary
 pymongo
 redis
+sqlalchemy[asyncio]
+asyncpg
+motor
+aioredis
 
 # AWS
 boto3
