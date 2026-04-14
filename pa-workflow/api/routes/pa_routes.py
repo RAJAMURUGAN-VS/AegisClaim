@@ -1,49 +1,89 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from uuid import UUID
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from uuid import UUID, uuid4
+from typing import List, Dict, Any
 
 from ..schemas import pa_schemas
-from ..middleware.auth import require_role, User
+from ..middleware.auth import require_role, User, get_current_user
+from ...agents.orchestrator import run_pa_workflow
+from ...core.redis_client import get_redis_client
 
 router = APIRouter()
+
+# A simple in-memory cache for demo purposes. Replace with Redis.
+# In a real app, Redis would be used to store the state.
+workflow_results: Dict[UUID, Any] = {}
+
+
+async def run_workflow_and_store_results(pa_id: UUID, request_data: dict):
+    """Helper function to run the workflow and cache the result."""
+    final_state = await run_pa_workflow(request_data)
+    redis = await get_redis_client()
+    await redis.set(f"pa_result_{pa_id}", str(final_state), ex=3600) # Cache for 1 hour
+    # For simplicity, also keeping it in memory for this example
+    workflow_results[pa_id] = final_state
+
 
 @router.post("/pa/submit", response_model=pa_schemas.PAStatusResponse, status_code=status.HTTP_202_ACCEPTED)
 async def submit_pa_request(
     request: pa_schemas.PASubmitRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
 ):
     """
     Submit a new Prior Authorization request.
-    Accepts the request and queues it for processing.
+    Accepts the request and queues it for processing in the background.
     """
-    # TODO: Create PA request record in PostgreSQL
-    # TODO: Trigger the LangGraph orchestrator asynchronously (e.g., via Redis queue)
-    print(f"User {current_user.id} submitted PA request for patient {request.patient_member_id}")
+    pa_id = uuid4()
     
-    # Placeholder response
-    return {
-        "pa_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-        "status": "PENDING",
-        "created_at": "2026-04-14T10:00:00Z"
-    }
+    # Prepare the initial state for the orchestrator
+    request_data = request.model_dump()
+    request_data.update({
+        "pa_id": pa_id,
+        "user_id": current_user.id,
+        # In a real scenario, document paths would come from a file upload step
+        # For now, we'll simulate them based on the request.
+        "document_paths": ["clinical_notes.pdf", "prescription.pdf"]
+    })
 
-@router.get("/pa/{pa_id}", response_model=pa_schemas.PAStatusResponse)
-async def get_pa_details(pa_id: UUID, current_user: User = Depends(get_current_user)):
-    """Get the detailed status and information for a specific PA request."""
-    # TODO: Fetch PA details from PostgreSQL
-    print(f"User {current_user.id} fetching details for PA {pa_id}")
+    # Run the workflow in the background
+    background_tasks.add_task(run_workflow_and_store_results, pa_id, request_data)
     
-    # Placeholder response
+    print(f"User {current_user.id} submitted PA request {pa_id} for patient {request.patient_member_id}")
+    
+    # Return an immediate response
     return {
         "pa_id": pa_id,
-        "status": "APPROVED",
-        "final_score": 92.5,
-        "risk_flag": "LOW",
-        "decision": "AUTO_APPROVE",
-        "auth_code": "PA-2026-123456",
-        "auth_valid_until": "2026-07-13",
-        "created_at": "2026-04-14T10:00:00Z",
-        "decided_at": "2026-04-14T10:01:30Z"
+        "status": "PENDING",
+        "created_at": "2026-04-14T10:00:00Z" # Placeholder
+    }
+
+@router.get("/pa/{pa_id}", response_model=pa_schemas.PADetailResponse)
+async def get_pa_details(pa_id: UUID, current_user: User = Depends(get_current_user)):
+    """Get the detailed status and information for a specific PA request."""
+    print(f"User {current_user.id} fetching details for PA {pa_id}")
+    
+    # Fetch result from our temporary cache
+    result = workflow_results.get(pa_id)
+    
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PA request not found or still processing.")
+
+    # Map the final state from the orchestrator to the API response schema
+    return {
+        "pa_id": pa_id,
+        "status": result.get("status", "UNKNOWN"),
+        "final_score": result.get("final_score"),
+        "risk_flag": result.get("agent_c_output", {}).get("risk_flag"),
+        "decision": result.get("decision"),
+        "auth_code": "PA-2026-123456" if result.get("decision") == "AUTO_APPROVE" else None,
+        "auth_valid_until": "2026-07-13" if result.get("decision") == "AUTO_APPROVE" else None,
+        "created_at": "2026-04-14T10:00:00Z", # Placeholder
+        "decided_at": "2026-04-14T10:01:30Z", # Placeholder
+        "details": {
+            "agent_a_output": result.get("agent_a_output"),
+            "agent_b_output": result.get("agent_b_output"),
+            "agent_c_output": result.get("agent_c_output"),
+        }
     }
 
 @router.post("/pa/{pa_id}/documents", response_model=pa_schemas.DocumentUploadResponse)

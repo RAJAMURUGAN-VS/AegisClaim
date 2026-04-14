@@ -2,7 +2,8 @@
 # Frameworks
 fastapi
 uvicorn
-langgraph
+langgraph>=0.2.0
+langchain-core>=0.2.0
 pydantic-settings
 
 # Auth
@@ -20,6 +21,13 @@ aioredis
 
 # AWS
 boto3
+
+# AI & ML
+openai
+anthropic
+scikit-learn
+fhir.resources
+python-dotenv
 
 # Testing
 pytest
