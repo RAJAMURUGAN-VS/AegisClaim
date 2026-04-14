@@ -5,6 +5,7 @@ uvicorn
 langgraph>=0.2.0
 langchain-core>=0.2.0
 pydantic-settings
+alembic
 
 # Auth
 python-jose[cryptography]
@@ -29,6 +30,12 @@ scikit-learn
 fhir.resources
 python-dotenv
 
+# Comms & HTTP
+twilio
+httpx
+python-multipart
+
 # Testing
 pytest
 httpx
+
