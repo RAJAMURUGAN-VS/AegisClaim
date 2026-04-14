@@ -4,9 +4,9 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 
-from ..core.config import settings
+from core.config import settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # Placeholder tokenUrl
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False) # Placeholder tokenUrl
 
 class TokenData(BaseModel):
     """Schema for data stored in the JWT token."""
@@ -18,7 +18,7 @@ class User(BaseModel):
     id: str
     roles: List[str]
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> User:
     """
     Decode JWT token to get current user.
     Raises HTTPException 401 for invalid tokens.
@@ -28,6 +28,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if not token and settings.ENVIRONMENT == "dev":
+        # Dev fallback for local UI/testing when auth server is not configured.
+        return User(id="dev-user", roles=["PROVIDER", "ADMIN", "ADJUDICATOR", "MEDICAL_DIRECTOR"])
+
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]

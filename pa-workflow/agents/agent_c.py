@@ -6,8 +6,8 @@ from uuid import UUID
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from ..core.exceptions import FraudDetectionException
-from ..models.mongo_models import AnomalyFlag
+from core.exceptions import FraudDetectionException
+from models.mongo_models import AnomalyFlag
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

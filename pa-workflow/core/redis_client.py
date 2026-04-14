@@ -1,5 +1,5 @@
-import aioredis
-from aioredis import Redis
+from redis.asyncio import Redis
+from redis.asyncio import from_url
 from .config import settings
 from typing import Optional, Any
 
@@ -9,7 +9,7 @@ async def connect_redis():
     """Create Redis connection pool."""
     global redis_pool
     try:
-        redis_pool = aioredis.from_url(
+        redis_pool = from_url(
             str(settings.REDIS_URL),
             encoding="utf-8",
             decode_responses=True

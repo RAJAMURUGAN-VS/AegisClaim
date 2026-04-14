@@ -29,6 +29,7 @@ class AnomalyFlag(BaseModel):
     flag_type: str
     detected_at: datetime
     severity: str # e.g., "LOW", "MEDIUM", "HIGH"
+    details: dict = Field(default_factory=dict)
 
 class ClaimHistoryDocument(BaseModel):
     """

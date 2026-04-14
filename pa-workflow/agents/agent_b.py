@@ -7,8 +7,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.exceptions import PolicyRuleNotFoundException, ComplianceCheckException
-from ..models.postgres_models import PlanMaster, PARequest, ICDCPTCrosswalk, StatusEnum
+from core.exceptions import PolicyRuleNotFoundException, ComplianceCheckException
+from models.postgres_models import PlanMaster, PARequest, ICDCPTCrosswalk, StatusEnum
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

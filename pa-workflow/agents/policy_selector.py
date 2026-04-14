@@ -1,6 +1,7 @@
 import logging
 from uuid import UUID
 from typing import List, Dict, Any
+from pathlib import Path
 
 # Placeholder for a more complex policy selector agent
 # In a real system, this would query a database or a rules engine.
@@ -24,16 +25,18 @@ class PolicySelectorAgent:
         """
         logger.info(f"Checking policy for plan_id: {plan_id}")
         
-        rules = self.plan_rules.get(plan_id)
+        normalized_docs = [Path(doc).stem.lower() for doc in submitted_docs]
+        rules = self.plan_rules.get(str(plan_id))
         if not rules:
-            # Default to requiring PA if plan is unknown
-            return {"pa_required": True, "missing_documents": ["clinical_notes"]}
+            # Default to PA required for unknown plans, but do not hard-block when files were submitted.
+            missing = [] if normalized_docs else ["clinical_notes"]
+            return {"pa_required": True, "missing_documents": missing, "document_checklist": ["clinical_notes", "prescription"]}
 
         if not rules["pa_required"]:
             return {"pa_required": False, "missing_documents": []}
 
         # Check for missing documents (simplified logic)
-        missing = [doc for doc in rules["required_docs"] if doc not in submitted_docs]
+        missing = [doc for doc in rules["required_docs"] if doc not in normalized_docs]
         
         return {
             "pa_required": True,

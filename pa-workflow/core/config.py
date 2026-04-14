@@ -1,6 +1,6 @@
 from pydantic import PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
+from typing import Literal, Optional
 
 class Settings(BaseSettings):
     """
@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["dev", "staging", "prod"] = "dev"
 
     # PostgreSQL Database
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_SERVER: str
-    POSTGRES_DB: str
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_DB: str = "aegisclaim"
     POSTGRES_PORT: int = 5432
     DATABASE_URL: PostgresDsn | None = None
 
@@ -25,19 +25,19 @@ class Settings(BaseSettings):
             self.DATABASE_URL = f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # MongoDB
-    MONGO_URI: str
+    MONGO_URI: str = "mongodb://localhost:27017/aegisclaim"
 
     # Redis
-    REDIS_URL: RedisDsn
+    REDIS_URL: RedisDsn = "redis://localhost:6379/0"
 
-    # AWS Credentials
-    AWS_REGION: str
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
-    AWS_S3_BUCKET_NAME: str
+    # AWS Credentials (optional when using open-source OCR)
+    AWS_REGION: Optional[str] = None
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_S3_BUCKET_NAME: Optional[str] = None
 
     # JWT Authentication
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "dev-secret-change-me"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     OCR_CONFIDENCE_THRESHOLD: float = 0.7
     SCORE_AUTO_APPROVE_THRESHOLD: int = 85
     SCORE_HUMAN_REVIEW_MIN_THRESHOLD: int = 60
+
+    # Perplexity Sonar API (allows fallback from VITE_SONAR_API in existing env files)
+    SONAR_API_KEY: Optional[str] = None
+    VITE_SONAR_API: Optional[str] = None
+    SONAR_MODEL: str = "sonar"
 
 
 settings = Settings()
