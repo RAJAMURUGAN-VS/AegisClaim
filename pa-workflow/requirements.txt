@@ -5,6 +5,10 @@ uvicorn
 langgraph
 pydantic-settings
 
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+
 # Database
 psycopg2-binary
 pymongo
