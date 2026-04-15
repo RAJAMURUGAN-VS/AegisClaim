@@ -34,6 +34,11 @@ class PAStatusResponse(BaseModel):
     created_at: datetime
     decided_at: Optional[datetime] = None
 
+
+class PADetailResponse(PAStatusResponse):
+    """Detailed response for a PA request including per-agent outputs."""
+    details: Optional[dict] = None
+
 class PADecisionRequest(BaseModel):
     """Schema for an adjudicator to submit a decision."""
     decision: Literal["HUMAN_APPROVE", "HUMAN_DENY"]
@@ -52,3 +57,15 @@ class DocumentUploadResponse(BaseModel):
     uploaded_files: List[str]
     missing_docs: List[str]
     status: str
+
+
+class PAChatRequest(BaseModel):
+    """Schema for context-aware PA assistant chat."""
+    message: str = Field(..., min_length=1, max_length=4000)
+
+
+class PAChatResponse(BaseModel):
+    """Schema for chat response from Sonar medical advisor persona."""
+    pa_id: UUID
+    answer: str
+    used_context_keys: List[str] = Field(default_factory=list)

@@ -57,6 +57,15 @@ class PlanMaster(Base):
     step_therapy_required = Column(Boolean, default=False)
     max_quantity = Column(Integer, nullable=True)
 
+class ICDCPTCrosswalk(Base):
+    """Coverage mapping between ICD-10 and CPT codes per plan/rule set."""
+    __tablename__ = "icd_cpt_crosswalk"
+
+    crosswalk_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    icd10_code = Column(String(16), nullable=False, index=True)
+    cpt_code = Column(String(16), nullable=False, index=True)
+    is_covered = Column(Boolean, default=True, nullable=False)
+
 class PARequest(Base):
     """Model for Prior Authorization requests."""
     __tablename__ = "pa_requests"

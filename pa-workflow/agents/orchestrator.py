@@ -2,14 +2,15 @@ import logging
 import asyncio
 from typing import TypedDict, List, Optional, Dict, Any
 from uuid import UUID
+from pathlib import Path
 
 from langgraph.graph import StateGraph, END, START
 
-from .agent_a import DocumentProcessorAgent, AgentAOutput
-from .agent_b import PolicyComplianceAgent, AgentBOutput
-from .agent_c import FraudAnomalyAgent, AgentCOutput
-from .policy_selector import PolicySelectorAgent
-from ..core.database import get_db, get_mongo_db
+from agents.agent_a import DocumentProcessorAgent, AgentAOutput
+from agents.agent_b import PolicyComplianceAgent, AgentBOutput
+from agents.agent_c import FraudAnomalyAgent, AgentCOutput
+from agents.policy_selector import PolicySelectorAgent
+from core.database import AsyncSessionFactory, get_mongo_db
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class PAWorkflowState(TypedDict):
     pa_id: UUID
     payer_id: UUID
     plan_id: str
+    plan_uuid: UUID
     patient_member_id: str
     provider_npi: str
     cpt_codes: List[str]
@@ -48,7 +50,7 @@ async def run_policy_selector(state: PAWorkflowState) -> PAWorkflowState:
     logger.info(f"[{state['pa_id']}] Node: run_policy_selector")
     agent = PolicySelectorAgent()
     # Assuming document paths are simplified to just their type for this example
-    submitted_doc_types = [path.split('/')[-1].split('.')[0] for path in state['document_paths']]
+    submitted_doc_types = [Path(path).stem for path in state['document_paths']]
     
     policy_info = agent.check_policy_and_documents(state['plan_id'], submitted_doc_types)
     
@@ -86,11 +88,9 @@ async def run_document_processor(state: PAWorkflowState) -> PAWorkflowState:
 
 async def run_compliance_and_fraud(state: PAWorkflowState) -> PAWorkflowState:
     logger.info(f"[{state['pa_id']}] Node: run_compliance_and_fraud (parallel)")
-    
-    db_session_gen = get_db()
-    mongo_db_gen = get_mongo_db()
-    
-    async with await db_session_gen.__anext__() as db_session, await mongo_db_gen.__anext__() as mongo_db:
+    mongo_db = await get_mongo_db()
+
+    async with AsyncSessionFactory() as db_session:
         agent_b = PolicyComplianceAgent(db_session)
         agent_c = FraudAnomalyAgent(mongo_db)
 
@@ -106,7 +106,7 @@ async def run_compliance_and_fraud(state: PAWorkflowState) -> PAWorkflowState:
                 fhir_bundle=agent_a_out.fhir_bundle,
                 patient_member_id=state['patient_member_id'],
                 payer_id=state['payer_id'],
-                plan_id=UUID(state['plan_id'])
+                plan_id=state['plan_uuid']
             ),
             agent_c.analyze(
                 pa_id=state['pa_id'],
@@ -212,6 +212,7 @@ async def run_pa_workflow(pa_request: dict) -> dict:
         pa_id=pa_request['pa_id'],
         payer_id=pa_request['payer_id'],
         plan_id=pa_request['plan_id'],
+        plan_uuid=pa_request['plan_uuid'],
         patient_member_id=pa_request['patient_member_id'],
         provider_npi=pa_request['provider_npi'],
         cpt_codes=pa_request['cpt_codes'],

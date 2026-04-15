@@ -1,14 +1,16 @@
 import time
 import re
 import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
-from ..core.config import settings
-from ..core.exceptions import OCRException, TextractTimeoutException
-from ..services.ocr_service import get_textract_client, upload_to_s3
+from core.config import settings
+from core.exceptions import OCRException
+from services.ocr_service import extract_text_from_image, extract_text_from_pdf
+from services.sonar_service import analyze_extracted_text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ class AgentAOutput:
     fhir_bundle: Dict[str, Any]
     ocr_results: List[OCRResult]
     medical_codes: MedicalCodes
+    text_analysis: Dict[str, Any] = field(default_factory=dict)
     missing_fields: List[str] = field(default_factory=list)
     overall_confidence: float = 0.0
     flagged_for_review: bool = False
@@ -51,7 +54,6 @@ class DocumentProcessorAgent:
     Agent A: Processes uploaded documents to extract and structure clinical data.
     """
     def __init__(self):
-        self.textract_client = get_textract_client()
         # Placeholder for RxNorm keywords
         self.rxnorm_keywords = ["Lisinopril", "Metformin", "Amlodipine"]
 
@@ -71,12 +73,13 @@ class DocumentProcessorAgent:
                 if ocr_result.low_confidence:
                     logger.warning(f"[{pa_id}] Document '{doc_path}' has low OCR confidence: {ocr_result.confidence_score:.2f}")
                 full_text += ocr_result.text + "\n"
-            except (OCRException, TextractTimeoutException) as e:
+            except OCRException as e:
                 logger.error(f"[{pa_id}] Failed to process document '{doc_path}': {e}")
                 # Decide if we should continue or fail
                 continue
 
         cleaned_text = self._clean_text(full_text)
+        text_analysis = analyze_extracted_text(cleaned_text)
         extracted_codes = self._extract_medical_codes(cleaned_text)
         fhir_bundle = self._build_fhir_bundle(pa_id, patient_data, extracted_codes)
 
@@ -90,14 +93,15 @@ class DocumentProcessorAgent:
             fhir_bundle=fhir_bundle,
             ocr_results=all_ocr_results,
             medical_codes=extracted_codes,
+            text_analysis=text_analysis,
             overall_confidence=overall_confidence,
             flagged_for_review=flagged_for_review,
         )
 
     def _run_ocr(self, document_path: str) -> OCRResult:
         """
-        Run OCR on a document using AWS Textract.
-        Handles both sync (images) and async (PDF) processing.
+        Run OCR on a document using open-source OCR.
+        Uses pytesseract + pdf2image for local extraction.
         """
         file_extension = document_path.split('.')[-1].lower()
         
@@ -109,23 +113,9 @@ class DocumentProcessorAgent:
             raise OCRException(f"Unsupported file type: {file_extension}")
 
     def _run_sync_ocr(self, document_path: str) -> OCRResult:
-        logger.info(f"Running synchronous OCR for image: {document_path}")
+        logger.info(f"Running local OCR for image: {document_path}")
         try:
-            with open(document_path, "rb") as document_file:
-                response = self.textract_client.detect_document_text(
-                    Document={"Bytes": document_file.read()}
-                )
-            
-            text = ""
-            total_confidence = 0
-            block_count = 0
-            for item in response["Blocks"]:
-                if item["BlockType"] == "LINE":
-                    text += item["Text"] + "\n"
-                    total_confidence += item["Confidence"]
-                    block_count += 1
-            
-            avg_confidence = (total_confidence / block_count) / 100 if block_count > 0 else 0.0
+            text, avg_confidence = extract_text_from_image(document_path)
             
             return OCRResult(
                 document_path=document_path,
@@ -135,52 +125,12 @@ class DocumentProcessorAgent:
                 page_count=1
             )
         except Exception as e:
-            raise OCRException(f"Synchronous Textract OCR failed for {document_path}: {e}")
+            raise OCRException(f"Local OCR failed for {document_path}: {e}")
 
     def _run_async_ocr(self, document_path: str) -> OCRResult:
-        logger.info(f"Running asynchronous OCR for PDF: {document_path}")
+        logger.info(f"Running local OCR for PDF: {document_path}")
         try:
-            s3_key = upload_to_s3(document_path)
-            response = self.textract_client.start_document_analysis(
-                DocumentLocation={'S3Object': {'Bucket': settings.AWS_S3_BUCKET_NAME, 'Name': s3_key}},
-                FeatureTypes=['TEXT']
-            )
-            job_id = response['JobId']
-            logger.info(f"Started Textract job {job_id} for {s3_key}")
-
-            # Poll for completion
-            job_status = self._wait_for_textract_job(job_id)
-
-            if job_status != 'SUCCEEDED':
-                raise OCRException(f"Textract job {job_id} failed with status: {job_status}")
-
-            # Get results
-            text = ""
-            total_confidence = 0
-            block_count = 0
-            page_count = 0
-            
-            pages = []
-            next_token = None
-            while True:
-                if next_token:
-                    response = self.textract_client.get_document_analysis(JobId=job_id, NextToken=next_token)
-                else:
-                    response = self.textract_client.get_document_analysis(JobId=job_id)
-                
-                pages.extend(response['Blocks'])
-                page_count = response.get('DocumentMetadata', {}).get('Pages', page_count)
-                next_token = response.get('NextToken')
-                if not next_token:
-                    break
-
-            for item in pages:
-                if item["BlockType"] == "LINE":
-                    text += item["Text"] + "\n"
-                    total_confidence += item["Confidence"]
-                    block_count += 1
-            
-            avg_confidence = (total_confidence / block_count) / 100 if block_count > 0 else 0.0
+            text, avg_confidence, page_count = extract_text_from_pdf(document_path)
 
             return OCRResult(
                 document_path=document_path,
@@ -191,18 +141,7 @@ class DocumentProcessorAgent:
             )
 
         except Exception as e:
-            raise OCRException(f"Asynchronous Textract OCR failed for {document_path}: {e}")
-
-    def _wait_for_textract_job(self, job_id: str, timeout_minutes: int = 5) -> str:
-        """Polls Textract for job completion."""
-        start_time = time.time()
-        while time.time() - start_time < timeout_minutes * 60:
-            response = self.textract_client.get_document_analysis(JobId=job_id)
-            status = response['JobStatus']
-            if status in ['SUCCEEDED', 'FAILED', 'PARTIAL_SUCCESS']:
-                return status
-            time.sleep(5)
-        raise TextractTimeoutException(f"Job {job_id} timed out after {timeout_minutes} minutes.")
+            raise OCRException(f"Local PDF OCR failed for {document_path}: {e}")
 
     def _clean_text(self, raw_text: str) -> str:
         """Cleans raw OCR text."""

@@ -1,41 +1,82 @@
 # Python dependencies
-# Frameworks
+# Core Frameworks
 fastapi
 uvicorn
 langgraph>=0.2.0
 langchain-core>=0.2.0
+langchain>=0.2.0
+langchain-community>=0.2.0
+pydantic>=2.0
 pydantic-settings
 alembic
 
-# Auth
+# Authentication & Security
 python-jose[cryptography]
 passlib[bcrypt]
-
-# Database
-psycopg2-binary
-pymongo
-redis
-sqlalchemy[asyncio]
-asyncpg
-motor
-aioredis
-
-# AWS
-boto3
-
-# AI & ML
-openai
-anthropic
-scikit-learn
-fhir.resources
-python-dotenv
-
-# Comms & HTTP
-twilio
-httpx
 python-multipart
 
+# Database & ORM
+psycopg2-binary
+pymongo
+motor
+sqlalchemy[asyncio]
+asyncpg
+redis
+aioredis
+
+# OCR & Document Processing
+# Open-source OCR stack
+pdf2image>=1.16.0
+pytesseract>=0.3.10
+pillow>=10.0.0
+
+# Advanced OCR Models (TrOCR, GOT-OCR 2.0, PaddleOCR)
+transformers>=4.30.0
+torch>=2.0.0
+torchvision>=0.15.0
+paddleocr>=2.7.0
+
+# Medical Code Extraction & Validation
+fhir.resources>=7.0.0
+medspacy>=0.2.3
+scispacy>=0.5.2
+nltk>=3.8.0
+spacy>=3.7.0
+
+# LLM & AI Models
+openai>=1.0.0
+anthropic>=0.7.0
+langchain-openai>=0.1.0
+langchain-anthropic>=0.1.0
+
+# Machine Learning & Utilities
+scikit-learn>=1.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+shap>=0.42.0  # For explainability
+
+# FHIR & Healthcare Standards
+hl7>=0.4.5
+python-dateutil>=2.8.0
+
+# Communications
+twilio>=9.0.0
+httpx>=0.24.0
+
+# Logging & Monitoring
+python-dotenv>=1.0.0
+loguru>=0.7.0
+
 # Testing
-pytest
-httpx
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+pytest-cov>=4.1.0
+
+# Dev & Linting
+black>=23.9.0
+flake8>=6.0.0
+mypy>=1.5.0
+isort>=5.12.0
 

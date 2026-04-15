@@ -1,10 +1,11 @@
 # FastAPI Main Application Entrypoint
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from ..core.database import connect_db, disconnect_db, connect_mongo, disconnect_mongo
-from ..core.redis_client import connect_redis, disconnect_redis
-from ..models.mongo_models import create_indexes
-from ..core.config import settings
+from core.database import connect_db, disconnect_db, connect_mongo, disconnect_mongo
+from core.redis_client import connect_redis, disconnect_redis
+from models.mongo_models import create_indexes
+from core.config import settings
 from .routes import pa_routes #, webhook_routes
 
 @asynccontextmanager
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
     
     # Create MongoDB indexes
     # This needs a bit of a workaround to get the db instance during startup
-    from ..core.database import get_mongo_client
+    from core.database import get_mongo_client
     mongo_client = get_mongo_client()
     db_name = settings.MONGO_URI.split("/")[-1].split("?")[0]
     mongo_db = mongo_client[db_name]
@@ -32,6 +33,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI-Powered Prior Authorization Workflow",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/", tags=["Root"])

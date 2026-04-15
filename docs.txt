@@ -1,0 +1,1157 @@
+# AI-Powered Prior Authorization (PA) Workflow — Google Stitch UI Prompts
+### Version 1.0 | React Web (Desktop-First) | All Roles
+---
+
+> **GLOBAL DESIGN SYSTEM** (apply to every page)
+> **Color palette: fully open — let Google Stitch choose. Do not specify hex values or named colors.**
+> - Stack: React + Tailwind, desktop-first
+> - Sidebar: fixed left, 260px, role-based navigation
+> - Header bar: sticky top, logo left, right side = notification bell (badge count), user avatar, role pill badge, logout icon
+> - Status color system (consistent everywhere):
+>   - PENDING / PROCESSING → Amber
+>   - APPROVED / AUTO-APPROVED / COMPLETED → Green
+>   - DENIED / AUTO-DENIED / REJECTED → Red
+>   - HUMAN REVIEW / UNDER REVIEW → Blue
+>   - SCORING → Indigo
+>   - APPEALED → Purple
+>   - VOIDED / EXPIRED → Gray
+>   - HIGH risk flag → Red
+>   - MEDIUM risk flag → Amber
+>   - LOW risk flag → Green
+> - All tables: search bar + filter chips + pagination (20/page) + CSV export button
+> - All forms: visible labels, placeholder text, inline validation, Submit (primary) + Cancel (ghost) buttons
+> - Empty states: centered illustration + heading + CTA button
+> - Skeleton loaders on all data-fetching states
+> - HIPAA compliance notice footer on all pages handling PHI
+
+---
+
+═══ PAGE BREAK ═══
+
+## Page 1 — Login Page
+
+**[ROLE]** All roles (pre-authentication)
+
+**[GOAL]** Allow authenticated users (Providers, Adjudicators, Medical Directors, Admins, Auditors) to sign in and handle forced first-login password change.
+
+**[WEB LAYOUT]**
+- Full-screen split layout: left 55% = brand/illustration panel, right 45% = login form panel
+- No sidebar (unauthenticated)
+- Centered vertically and horizontally within right panel
+
+**[COMPONENTS]**
+- Brand panel (left): product name, company name, abstract illustration (multi-agent AI pipeline / healthcare workflow)
+- Login form (right):
+  - System title: "AI-Powered Prior Authorization Workflow"
+  - Subtitle: "Healthcare AI Automation Division"
+  - Email input (type=email, placeholder: "Enter your work email")
+  - Password input (type=password, show/hide toggle, placeholder: "Enter your password")
+  - "Sign In" primary button (full width)
+  - Error alert banner: "Invalid credentials. Please try again." (red, dismissable)
+  - Link: "Forgot password?"
+- First-Login modal (overlay): triggered when `is_first_login = true`
+  - Heading: "Set Your New Password"
+  - New password input + Confirm password input
+  - Password strength indicator bar
+  - "Update Password" primary button
+  - Note: "You must set a new password before continuing."
+- HIPAA notice: small text at bottom: "This system processes Protected Health Information (PHI). Unauthorized access is prohibited."
+
+**[DATA DISPLAYED]**
+- No data fetched; uses local form state
+
+**[USER ACTIONS]**
+- Submit email + password → authenticate → redirect to role dashboard
+- If first login: forced to set new password before any redirect
+
+**[PAGE STATES]**
+- Default: clean form
+- Loading: spinner inside Sign In button, fields disabled
+- Error: inline error messages
+- First-login overlay active: modal appears after successful auth, blocks background
+
+**[VISUAL DESIGN DIRECTION]**
+- Left panel: professional gradient with subtle geometric mesh or neural-network-node pattern and white line-art illustration of a multi-agent AI pipeline (documents flowing through agents to decision)
+- Right panel: white/off-white, clean card-like form
+- Primary CTA: solid accent color
+- Font: choose an appropriate professional healthcare pairing
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a web login page for an AI-Powered Prior Authorization (PA) Workflow system for a healthcare AI company. Split layout: left 55% is a professional gradient panel with a subtle neural-network node pattern background and a white line-art illustration of documents flowing through an AI multi-agent pipeline to a decision output, plus the text "Prior Authorization Workflow" in large white bold serif font and "Healthcare AI Automation Division" as a subtitle. Right 45% is a clean white panel with a centered login card containing: the page title in dark charcoal, an email input field with placeholder "Enter your work email", a password input with show/hide toggle, a full-width accent "Sign In" button, and a small "Forgot password?" text link. Include an error state with a dismissable red error banner. Also show a modal overlay for first-time users to set a new password with two password inputs, a colored password-strength progress bar, and an "Update Password" primary button. A small HIPAA compliance notice at the very bottom: "This system processes Protected Health Information. Unauthorized access is prohibited." Desktop-first design, clean, clinical, and professional.
+
+═══ PAGE BREAK ═══
+
+## Page 2 — Provider Dashboard (Home)
+
+**[ROLE]** Provider (Hospital/EHR submitter)
+
+**[GOAL]** Quick overview of submitted PA requests, their pipeline statuses, pending document uploads, and quick submission CTA.
+
+**[WEB LAYOUT]**
+- Left sidebar (260px): logo, nav items (Dashboard, Submit PA Request, My PA Requests, Appeals, Profile)
+- Sticky header: breadcrumb "Dashboard", notification bell, avatar + name + "Provider" role badge, logout
+- Content: 4-column stat cards row, then 2-column grid (Active PA Requests table left, Pipeline Summary chart right), then Recent Activity strip at bottom
+
+**[COMPONENTS]**
+- Stat cards (4 cards in a row):
+  - "Total Submitted" — all-time count, neutral info-tone
+  - "Pending / In Progress" — warning-tone count
+  - "Approved" — green count, authorization code ready
+  - "Denied / Under Review" — split count with red/blue breakdown
+- Active PA Requests table (left, ~65%):
+  - Columns: PA ID, Patient Member ID (masked), Procedure (CPT), Payer, Submitted, Status badge, Action (View)
+  - Max 8 rows, "View All" link
+- Pipeline Status donut/bar chart (right, ~35%):
+  - Segments per status: PENDING, PROCESSING, SCORING, APPROVED, DENIED, REVIEW, APPEALED
+  - Count labels per segment
+- Quick Action button row: "+ Submit New PA Request" (primary accent)
+- Missing Documents alert banner (warning-tone): "2 PA requests require additional documents — upload now" with "Upload Documents →" link, shown if any requests are awaiting documents
+
+**[DATA DISPLAYED]**
+- PA requests grouped by status
+- Pipeline distribution chart
+
+**[USER ACTIONS]**
+- Click stat cards → navigate to filtered PA list
+- Click "Submit New PA Request" → PA submission form
+- Click "View" on a request → detail drawer
+- Click missing document alert → filtered view of doc-pending requests
+
+**[PAGE STATES]**
+- Loaded: full dashboard
+- Empty (new provider): empty state with "Submit your first PA request" CTA
+- Loading: skeleton cards
+
+**[VISUAL DESIGN DIRECTION]**
+- Sidebar: dark with white text
+- Stat cards: white with subtle shadow
+- Missing document alert: amber with warning icon, prominent placement
+- Clinical, professional healthcare SaaS aesthetic
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a Provider dashboard home page for a healthcare AI Prior Authorization management system. Fixed dark left sidebar (260px) with navigation: Dashboard (active), Submit PA Request, My PA Requests, Appeals, Profile — each with a relevant icon. Sticky top header bar with breadcrumb "Dashboard", notification bell with a red badge count, provider avatar with name and a "Provider" role pill badge, and a logout icon. If any PA requests are awaiting documents, show a prominent amber warning banner at the top: "2 PA requests are pending document uploads — action required" with an "Upload Now →" link. Main content: first row shows 4 stat cards: (1) "Total Submitted" with a neutral info-tone count and a document icon, (2) "In Progress" with a large amber count, (3) "Approved" with a large green count and a checkmark icon, (4) "Denied / Under Review" showing a red denied count and a blue under-review count split in one card. Below the stat cards, a 65/35 two-column layout: left shows a compact table of the 8 most recent PA requests with columns PA ID (bold monospace), Patient ID (masked — show only last 4 chars), CPT Code(s), Payer Name, Submitted (relative time), Status (colored badge: amber PENDING/PROCESSING, green APPROVED, red DENIED, blue REVIEW), and a "View" button. Right shows a donut chart titled "PA Pipeline Distribution" with labeled segments for each status and a legend. Below both columns, a prominent primary "+ Submit New PA Request" accent button. Professional, clinical healthcare SaaS dashboard.
+
+═══ PAGE BREAK ═══
+
+## Page 3 — Provider — Submit New PA Request
+
+**[ROLE]** Provider
+
+**[GOAL]** Submit a new Prior Authorization request with patient data, clinical codes, and supporting documents.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Centered multi-section form card (max-width 800px)
+- Breadcrumb: Dashboard > Submit PA Request
+- 3-step stepper: "Patient & Payer Info" → "Clinical Codes" → "Documents & Submit"
+
+**[COMPONENTS]**
+- Step 1 — Patient & Payer Info:
+  - Patient Member ID (text, 8–20 chars, alphanumeric)
+  - Payer / Insurance Company (searchable dropdown, from payer_master)
+  - Insurance Plan ID (dropdown, populated based on Payer selection)
+  - Requesting Provider NPI (text, 10-digit, validated against NPPES registry)
+  - Date of Service / Requested Date (date picker, max 90 days prior)
+- Step 2 — Clinical Codes:
+  - Diagnosis Codes / ICD-10 (multi-tag input: type to search ICD-10 codes, add multiple, at least 1 required)
+  - Procedure / Treatment Codes (multi-tag input: CPT/HCPCS codes, at least 1 required)
+  - Medication Name & Dosage (text, conditional: shown only if a Pharmacy CPT/HCPCS is selected)
+  - Prior Treatment History (textarea or file upload, conditional: shown if step therapy may apply)
+- Step 3 — Documents & Submit:
+  - Dynamic document checklist (generated by PSA logic based on Step 1+2 inputs):
+    - Each required document listed with upload zone
+    - Indicator: Required / Optional tag per document
+    - File format: PDF/JPG/PNG/TIFF, max 10 MB per file
+  - Clinical Notes / Referral Letter (drag-and-drop upload, optional, max 10 MB)
+  - Review Summary card before final submit
+  - "Submit PA Request" primary button + "Back" ghost
+
+**[DATA DISPLAYED]**
+- Dynamic document checklist generated based on payer + treatment type
+- Uploaded file names and sizes
+
+**[USER ACTIONS]**
+- Fill all required fields across 3 steps
+- Upload all required documents
+- Submit → PA created → redirect to PA detail page with confirmation
+
+**[PAGE STATES]**
+- Step-by-step navigation state
+- Inline validation errors per field
+- Submitting state: spinner on submit button + "Submitting to AI Pipeline…" label
+- Success: toast "PA Request submitted successfully. PA ID: PA-2026-XXXXXX", redirect to detail
+
+**[VISUAL DESIGN DIRECTION]**
+- Dynamic checklist: each document row as a mini upload card — required docs have red asterisk, optional have "Optional" gray tag
+- Upload zones: dashed border, upload icon, changes color on file drop
+- Step indicators: accent active, completed steps with checkmarks
+- Review summary in Step 3: clean read-only data card
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Submit New PA Request" multi-step form page for a Provider in a healthcare AI Prior Authorization system. Dark sidebar, sticky header with "Provider" role badge. Breadcrumb "Dashboard > Submit PA Request". Centered white card (max 800px) on a light gray background. At the top, a horizontal 3-step progress stepper: "Patient & Payer Info", "Clinical Codes", "Documents & Submit" — current step accent, completed steps with checkmarks. Step 1 form contains: Patient Member ID text field (placeholder "8–20 alphanumeric characters"), Payer / Insurance Company searchable dropdown, Insurance Plan ID dropdown (dynamically populated after payer selection), Requesting Provider NPI field (10-digit with a "Verify NPI" inline button that checks registry), and Date of Service date picker (with note "Must be within last 90 days"). Step 2 contains: a multi-tag ICD-10 Diagnosis Code input (user types to search codes, selected codes appear as removable chips; at least 1 required), a CPT/HCPCS Procedure Code multi-tag input (same pattern), a conditional Medication Name & Dosage text field that appears when a pharmacy code is entered, and a conditional Prior Treatment History section (textarea + optional file upload) that appears when step therapy rules may apply. Step 3 shows a dynamic "Required Documents" checklist where each document type is a card with its name, a "Required" red tag or "Optional" gray tag, and a drag-and-drop upload zone (PDF/JPG/PNG/TIFF, max 10MB). Below the checklist, a general Clinical Notes upload zone (optional). Below that, a read-only review summary of all Step 1 and Step 2 inputs. Bottom: "Submit PA Request" (primary accent, full-width) and "Back" ghost button. On submit, show a spinner inside the button with "Submitting to AI Pipeline…" label. Success toast: "PA submitted successfully — PA ID: PA-2026-XXXXXX". Clean, professional healthcare form design.
+
+═══ PAGE BREAK ═══
+
+## Page 4 — Provider — My PA Requests List
+
+**[ROLE]** Provider
+
+**[GOAL]** View all submitted PA requests with their current pipeline status and actions.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Full-width content area
+- Page header: "My PA Requests" + "+ Submit New PA Request" button (top right)
+- Filter/search bar row, then table
+
+**[COMPONENTS]**
+- Page header: title + primary "+ Submit New PA Request" button
+- Search bar (by PA ID / Patient Member ID) + Status filter dropdown (All / PENDING / PROCESSING / SCORING / APPROVED / DENIED / REVIEW / APPEALED) + Payer filter + Date range picker + Export CSV
+- PA requests table:
+  - Columns: PA ID, Patient Member ID (masked), Payer, Procedure Codes (CPT chips), Submitted, Last Updated, Status (colored badge), Risk Flag (LOW/MEDIUM/HIGH badge if available), Actions
+  - Actions: "View" button; if APPROVED → "Get Auth Code" button (green); if DENIED → "Appeal" button (purple)
+  - Sortable columns: Submitted, Last Updated, Status
+  - Pagination row (20 per page)
+- Missing document alert rows: warning-tone row tint with "Upload Documents" action button for PENDING doc requests
+- Row click → side drawer: full PA detail with pipeline timeline
+
+**[COMPONENTS — Detail Drawer]**
+- Right side drawer (520px):
+  - PA request header: PA ID (monospace), status badge, payer name, submitted date
+  - Patient summary: masked Member ID, CPT codes, ICD-10 codes
+  - Pipeline state timeline: PENDING → PROCESSING → SCORING → DECIDED → NOTIFIED, each with timestamp and agent notes
+  - Score card (if scored): Final Score gauge, Policy Score, Clinical Match Score, Fraud Contribution
+  - Auth code section (if APPROVED): auth code in large monospace, validity period, conditions
+  - Denial section (if DENIED): denial reason, policy clause cited, "Download Appeals Letter Draft" button (purple)
+  - Document list: all uploaded files with download links
+
+**[VISUAL DESIGN DIRECTION]**
+- Pipeline timeline: vertical stepper, green checkmarks for completed stages, amber spinner for in-progress, gray for upcoming
+- Auth code: displayed in a green success card with a copy-to-clipboard icon
+- Denied rows: subtle red row tint
+- Risk flag HIGH: red badge, draws attention
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "My PA Requests" list page for a Provider in a healthcare AI Prior Authorization system. Dark accent left sidebar, sticky header with "Provider" role badge. Page title "My PA Requests" with a primary "+ Submit New PA Request" button top-right. Filter row: PA ID / Patient ID search bar, Status filter dropdown (All / PENDING / PROCESSING / SCORING / APPROVED / DENIED / REVIEW / APPEALED), Payer filter dropdown, Date range picker, CSV export button. Full-width data table: PA ID (bold monospace font), Patient Member ID (masked as "****1234"), Payer Name, CPT Codes (shown as small gray pill chips), Submitted date, Last Updated (relative time), Status badge (amber for PENDING/PROCESSING/SCORING, green for APPROVED, red for DENIED, blue for REVIEW, purple for APPEALED), Risk Flag chip (green LOW, amber MEDIUM, red HIGH — shown when scoring is complete), and Actions column. Actions: a "View" button always; additionally a green "Get Auth Code" button when APPROVED, or a purple "Appeal" button when DENIED. Rows for requests awaiting document upload have an amber left border and a "Upload Required Docs" action button. Sortable headers. Pagination. Clicking a row or "View" opens a right-side drawer (520px): header with PA ID, status badge, payer, submitted date; patient summary with masked Member ID, CPT and ICD-10 code chips; a vertical pipeline state timeline (PENDING, PROCESSING, SCORING, DECIDED, NOTIFIED) with status icons, timestamps, and brief agent notes for each completed stage; a score card showing a circular gauge with the final score (0–100), and below it three horizontal bars for Policy Score, Clinical Match Score, Fraud Contribution; if APPROVED, a green auth code card with the code in large monospace and a copy icon, validity period, and any conditions; if DENIED, a red denial reason box with the policy clause cited and a purple "Download Appeals Letter Draft" button. Document list at drawer bottom. Professional healthcare management UI.
+
+═══ PAGE BREAK ═══
+
+## Page 5 — Provider — Upload Missing Documents
+
+**[ROLE]** Provider
+
+**[GOAL]** Upload required missing documents for a PA request that is pending due to incomplete submission.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Centered upload card (max-width 700px)
+- Breadcrumb: Dashboard > My PA Requests > [PA ID] > Upload Documents
+
+**[COMPONENTS]**
+- PA summary header card: PA ID, payer name, patient masked ID, "DOCUMENT REQUESTED" amber badge
+- Missing documents list:
+  - Each required missing document as a row: document name, "Required" red tag, upload zone (drag-and-drop, PDF/JPG/PNG/TIFF, max 10 MB), uploaded file preview (name + size + remove button)
+  - Deadline banner: "Documents must be uploaded within 48 hours of the initial request to avoid auto-denial"
+  - Countdown timer display: "Time remaining: 31 hours 22 minutes"
+- Previously uploaded documents: read-only list with download links
+- "Submit Documents" primary button + "Cancel" ghost
+
+**[VISUAL DESIGN DIRECTION]**
+- Countdown timer: amber/red urgency, large and visible
+- Missing doc rows: error-tone left border until uploaded, success tint after upload
+- Deadline warning: prominent amber banner
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Upload Missing Documents" page for a Provider in a healthcare AI PA management system. Dark sidebar, sticky header. Breadcrumb "Dashboard > My PA Requests > PA-2026-001234 > Upload Documents". Centered white card (max 700px). At the top, a read-only PA summary card: PA ID in monospace bold, Payer name, masked Patient Member ID, and an amber "DOCUMENT REQUESTED" status badge. Prominently below that, an amber urgency banner: "Action Required: Missing documents must be uploaded within 48 hours to prevent auto-denial." with a large countdown timer "Time Remaining: 31h 22m" displayed in bold. Below the banner, a list of missing document rows — each row has: the document name in bold (e.g. "Step Therapy Failure Proof"), a red "Required" tag, and a drag-and-drop upload zone with dashed border and cloud-upload icon labeled "PDF, JPG, PNG, TIFF — max 10MB". After a file is uploaded to a row, the upload zone is replaced by a success file preview row showing filename, file size, and a red remove button, and the row background turns light green. Below the missing documents section, a "Previously Uploaded Documents" read-only section listing already submitted files with download icon links. Bottom: a primary "Submit Documents" button and "Cancel" ghost. Professional, urgent document collection UI with clinical healthcare aesthetics.
+
+═══ PAGE BREAK ═══
+
+## Page 6 — Provider — Appeal Denied PA
+
+**[ROLE]** Provider
+
+**[GOAL]** Submit a formal appeal for an auto-denied or human-denied PA request, using the GenAI-drafted appeals letter as a base.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Centered form card (max-width 760px)
+- Breadcrumb: Dashboard > My PA Requests > [PA ID] > Submit Appeal
+
+**[COMPONENTS]**
+- PA summary card: PA ID, payer name, denial reason code, denial date, "DENIED" red badge
+- Denial details section: denial reason description, specific policy clause cited
+- GenAI Appeals Letter editor:
+  - Banner: "AI has pre-drafted an appeals letter based on clinical evidence and medical guidelines. Review and edit before submission."
+  - Rich text editor with the pre-drafted letter pre-populated
+  - "Regenerate Draft" ghost button
+- Additional Supporting Documents (file upload: PDF, max 10 MB each, multiple allowed)
+- "Submit Appeal" primary purple button + "Cancel" ghost
+- Info note: "Submitting this appeal will initiate the appeals review process."
+
+**[VISUAL DESIGN DIRECTION]**
+- GenAI draft section: subtle AI indicator (sparkle/AI icon), teal/indigo border accent
+- Rich text editor: professional document editor appearance
+- Purple accent for all appeal-related CTAs (consistent with APPEALED status color)
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Submit Appeal" page for a Provider appealing a denied Prior Authorization request in a healthcare AI management system. Dark sidebar, sticky header. Breadcrumb "Dashboard > My PA Requests > PA-2026-001234 > Submit Appeal". Centered white card (max 760px). At the top, a read-only PA summary with PA ID, Payer, and a red "DENIED" badge, and below it the denial reason (e.g. "Step therapy not documented") with the specific policy clause cited (e.g. "Policy §4.2.1 — Step Therapy Requirement"). Below that, a large section titled "Appeals Letter" with a subtle AI/sparkle icon and an accent banner: "An AI draft has been generated based on clinical evidence and medical guidelines — review and edit before submitting." The letter itself is displayed in a rich text editor (with basic formatting: bold, italic, bullet list toolbar) pre-populated with the GenAI-drafted letter text. A "Regenerate Draft" ghost button below the editor. Then an "Additional Supporting Documents" section with a multi-file upload zone (PDF, max 10MB each) for any extra evidence. Bottom row: a primary purple "Submit Appeal" button and "Cancel" ghost. An info note below: "Once submitted, the appeal enters the review queue." Professional healthcare appeal submission UI.
+
+═══ PAGE BREAK ═══
+
+## Page 7 — Adjudicator Dashboard (Home)
+
+**[ROLE]** Adjudicator
+
+**[GOAL]** Overview of the human review queue — PA requests awaiting adjudicator decision, SLA timers, and recent decision activity.
+
+**[WEB LAYOUT]**
+- Left sidebar (260px): Dashboard, Review Queue, Decision History, Profile
+- Sticky header: breadcrumb "Dashboard", notification bell, avatar + "Adjudicator" role badge, logout
+- Content: 3 stat cards + SLA urgency section + review queue table
+
+**[COMPONENTS]**
+- Stat cards (3):
+  - "In Review Queue" — current count, amber warning
+  - "SLA Breaching Soon (< 4 hrs)" — red urgent count
+  - "Decisions Today" — green, count of today's adjudications
+- SLA urgency alert banner: if any items are approaching 24-hour SLA, show red banner "X requests breach SLA in less than 4 hours"
+- Review queue table (main, full-width):
+  - Columns: PA ID, Patient Member ID (masked), Payer, CPT Codes, Final Score (gauge chip), Risk Flag badge, Assigned At, Time in Queue (with SLA countdown bar per row), Actions (Review Now)
+  - Sorted by: time in queue ascending (oldest first = most urgent)
+  - SLA countdown bar per row: green > 12 hrs, amber 4–12 hrs, red < 4 hrs
+  - "Review Now" → navigates to PA Review Detail page
+- Recent decisions strip: last 5 adjudications with outcome badge, patient masked ID, and timestamp
+
+**[VISUAL DESIGN DIRECTION]**
+- SLA countdown bars: inline per row, color transitions green → amber → red
+- Urgent items: red row highlight if SLA < 4 hrs
+- Review Now: primary accent button, stands out
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design an Adjudicator dashboard home page for a healthcare AI Prior Authorization review system. Fixed dark left sidebar (260px) with navigation: Dashboard (active), Review Queue, Decision History, Profile. Sticky header with "Adjudicator" role badge, notification bell with badge, avatar, logout. If any requests are near SLA breach, show a red urgent banner at the top: "3 PA requests will breach the 24-hour SLA in under 4 hours — review immediately." with a "View Urgent →" link. Main content top row: 3 stat cards: (1) "In Review Queue" with a large amber count and a queue icon, (2) "Breaching SLA Soon" with a red count and a clock icon, (3) "Decisions Today" with a green count and a checkmark. Below, a full-width "Review Queue" table — sorted oldest-first. Columns: PA ID (bold monospace), Patient Member ID (masked), Payer Name, CPT Codes (chip pills), Final AI Score (shown as a compact circular gauge chip — e.g. a small donut chart with the number inside, colored: green ≥85, amber 60–84, red <60), Risk Flag badge (red HIGH, amber MEDIUM, green LOW), Time in Queue, SLA Status (a narrow horizontal progress bar per row: green for >12 hours remaining, amber for 4–12 hours, red for <4 hours — with the remaining time shown), and a primary "Review Now" action button. Rows with SLA < 4 hours have a subtle red row background. Below the table, a compact "Recent Decisions" strip showing the last 5 adjudicator decisions with PA ID, outcome badge, masked patient ID, and timestamp. Professional medical review workflow dashboard.
+
+═══ PAGE BREAK ═══
+
+## Page 8 — Adjudicator — PA Review Detail
+
+**[ROLE]** Adjudicator
+
+**[GOAL]** Review all AI outputs and evidence for a single PA request and make an approve, deny, request-more-info, or escalate decision.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Full-width 3-panel layout: left 25% = patient + request summary, center 50% = AI analysis detail, right 25% = decision panel
+- Breadcrumb: Dashboard > Review Queue > [PA ID]
+
+**[COMPONENTS]**
+- Left panel — Patient & Request Summary:
+  - PA ID, payer, plan name
+  - Patient: masked member ID, diagnosis codes (ICD-10 chip list), procedure codes (CPT chip list)
+  - Submitted at, provider NPI
+  - Documents list with download links
+- Center panel — AI Analysis (tabbed):
+  - Tab 1: "Score Breakdown"
+    - Large final score gauge (0–100, color-coded by threshold)
+    - Three score component bars: Policy Score (40%), Clinical Match Score (35%), Fraud Contribution (25%)
+    - Confidence threshold indicator: AUTO-APPROVE zone (≥85), HUMAN REVIEW zone (60–84), AUTO-DENY zone (<60)
+  - Tab 2: "SHAP Explanation"
+    - Horizontal SHAP waterfall chart: features contributing positively/negatively to the final score
+    - AI reasoning narrative paragraph
+  - Tab 3: "Compliance Flags"
+    - List of all compliance_flags from Agent B, each with severity (CRITICAL / WARNING / INFO)
+    - Step therapy status badge (PASSED / FAILED / NOT_APPLICABLE)
+  - Tab 4: "Fraud & Anomaly Report"
+    - Risk flag badge (HIGH/MEDIUM/LOW) with explanation
+    - Anomaly flags list (e.g., UPCODING_DETECTED) with descriptions
+    - Provider risk score (0.0–1.0) bar
+  - Tab 5: "Extracted Clinical Data"
+    - FHIR structured data: Patient, Conditions (ICD-10), Procedures (CPT), Medications (if applicable)
+    - OCR confidence scores per document
+- Right panel — Decision Panel (sticky):
+  - SLA countdown timer (large, color-coded urgency)
+  - AI Recommendation chip: AUTO-APPROVE / HUMAN REVIEW / AUTO-DENY with confidence score
+  - Decision buttons:
+    - "Approve" (green primary) — opens modal: optional conditions/limitations text field
+    - "Deny" (red outline) — opens modal: denial reason code dropdown (required) + comment (required)
+    - "Request More Information" (blue outline) — opens modal: specify what information is needed
+    - "Escalate to Medical Director" (amber outline) — opens modal: escalation notes (required)
+  - All decisions logged to audit_log immediately
+
+**[VISUAL DESIGN DIRECTION]**
+- Center panel tabs: clean tabbed interface, SHAP waterfall chart with green positive bars, red negative bars
+- Decision panel: sticky right column, decision buttons prominent, SLA timer dominates top of panel
+- CRITICAL flags: red callout boxes, impossible to miss
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "PA Review Detail" full-screen page for an Adjudicator in a healthcare AI Prior Authorization system. Dark sidebar, sticky header with "Adjudicator" role badge. Breadcrumb "Dashboard > Review Queue > PA-2026-004521". Three-column layout: Left column (25%): a vertical summary panel with the PA ID in monospace bold, Payer and Plan name, masked Patient Member ID, ICD-10 diagnosis codes as teal chip pills, CPT procedure codes as gray chip pills, Requesting Provider NPI, submission timestamp, and a "Documents Submitted" section listing each uploaded document as a row with a download icon. Center column (50%): a tabbed panel with 5 tabs. Tab 1 "Score Breakdown" shows a large circular score gauge (0–100; green if ≥85, amber if 60–84, red if <60) with the score number inside, below it three horizontal bar rows for Policy Score (40% weight, labeled), Clinical Match Score (35% weight), and Fraud Contribution (25% weight, note that this is "100 minus raw fraud score"), and a visual threshold band diagram showing the AUTO-APPROVE / HUMAN REVIEW / AUTO-DENY zones. Tab 2 "SHAP Explanation" shows a horizontal waterfall chart — positive contributing factors as green bars extending right, negative factors as red bars extending left — with factor labels (e.g. "ICD-CPT Match", "Step Therapy Documented", "Provider Risk"). Below the chart, a 3-sentence AI reasoning narrative paragraph in a light blue callout box. Tab 3 "Compliance Flags" lists flags from Agent B — each flag as a row with an icon, flag code (e.g. "STEP_THERAPY_NOT_MET"), a severity badge (CRITICAL=red, WARNING=amber, INFO=blue), and a plain-language description. Step therapy status shown as a prominent badge. Tab 4 "Fraud & Anomaly" shows the Risk Flag badge (HIGH/MEDIUM/LOW) prominently, a list of detected anomaly flags with descriptions, and a horizontal provider risk score bar (0.0–1.0, red above 0.7). Tab 5 "Extracted Clinical Data" shows the FHIR-structured output as a clean data table — Patient section, Conditions section, Procedures section — with OCR confidence score per source document shown as a percentage chip (red if below 70%). Right column (25%): a sticky decision panel. At the top, a large SLA countdown timer (color-coded: green >12h, amber 4-12h, red <4h). Below it, the AI Recommendation chip in a prominent card (e.g. "AI Recommends: HUMAN REVIEW — Score: 72"). Then four decision buttons stacked vertically: green "Approve" (primary), red "Deny" (outline), blue "Request More Information" (outline), amber "Escalate to Medical Director" (outline). Clicking "Approve" opens a modal with an optional "Conditions / Limitations" textarea and a "Confirm Approval" green button. Clicking "Deny" opens a modal with a required denial reason code dropdown and a required comment field. Clicking "Request More Info" opens a modal to specify what is needed. Clicking "Escalate" opens a modal with a required escalation notes field. Professional high-stakes medical decision UI.
+
+═══ PAGE BREAK ═══
+
+## Page 9 — Adjudicator — Decision History
+
+**[ROLE]** Adjudicator
+
+**[GOAL]** View a complete history of past adjudicator decisions with outcomes and audit trail.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Filter bar + data table
+
+**[COMPONENTS]**
+- Page title: "My Decision History"
+- Search (PA ID) + Date range + Outcome filter (All / Approved / Denied / Requested Info / Escalated) + Export CSV
+- Decision history table:
+  - Columns: PA ID, Patient (masked), Payer, Score at Decision, Decision Outcome (badge), Decision At, Time Taken (from queue entry to decision), Notes/Comment (truncated)
+  - Row click → read-only PA review summary drawer (same layout as Review Detail but decision panel replaced with decision outcome card)
+- Pagination
+
+**[VISUAL DESIGN DIRECTION]**
+- Outcome badges: green Approved, red Denied, blue Requested Info, amber Escalated
+- Time Taken column: green if < 4 hrs, amber if 4–12 hrs, red if > 12 hrs
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design an Adjudicator "Decision History" page for a healthcare AI PA management system. Dark accent sidebar, sticky header with "Adjudicator" role badge. Page title "My Decision History". Filter row: PA ID search, date range picker, Outcome filter dropdown (All / Approved / Denied / Requested Info / Escalated), CSV export. Table: PA ID (monospace), Patient Member ID (masked), Payer Name, Score at Decision (colored number chip: green ≥85, amber 60–84, red <60), Decision Outcome badge (green "Approved", red "Denied", blue "Requested More Info", amber "Escalated to Medical Director"), Decided At (full datetime), Time Taken (time from entering queue to decision — shown as a small color-coded chip: green <4hrs, amber 4–12hrs, red >12hrs), Notes/Comment (truncated 80 chars with hover tooltip). Row click opens a read-only right drawer showing the full PA summary (patient, payer, codes, score breakdown, SHAP summary, flags) and a decision outcome card at the bottom showing the outcome badge, reason/comment, and timestamp. Pagination. Professional medical audit history UI.
+
+═══ PAGE BREAK ═══
+
+## Page 10 — Medical Director Dashboard (Home)
+
+**[ROLE]** Medical Director
+
+**[GOAL]** Overview of escalated PA cases requiring Medical Director review, plus high-level PA pipeline metrics.
+
+**[WEB LAYOUT]**
+- Left sidebar (260px): Dashboard, Escalated Cases, All PA Records, Reports, Profile
+- Sticky header: breadcrumb "Dashboard", notification bell, avatar + "Medical Director" role badge, logout
+- Content: 3 stat cards + escalated queue table + pipeline summary chart
+
+**[COMPONENTS]**
+- Stat cards (3):
+  - "Escalated Cases Pending" — red urgent count
+  - "SLA Breach Risk" — count of escalated items > 36 hours
+  - "Auto-Approve Rate (30 days)" — percentage, green
+- Escalation SLA banner: "X escalated cases have exceeded 48-hour SLA — immediate action required" (if any)
+- Escalated cases queue table:
+  - Columns: PA ID, Escalated By (adjudicator name), Reason (truncated), Escalated At, Time Elapsed (with urgency color), Final Score, Risk Flag, Action (Review)
+  - Sorted by time elapsed descending
+- Pipeline summary chart: approval/denial/review/appeal breakdown for last 30 days as a stacked bar or grouped bar chart
+
+**[VISUAL DESIGN DIRECTION]**
+- Escalation SLA banner: red, prominent at top
+- Time elapsed column: hard red for >48 hrs
+- Pipeline chart: clean, labeled, professional
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a Medical Director dashboard home page for a healthcare AI PA escalation system. Fixed dark left sidebar (260px) with navigation: Dashboard (active), Escalated Cases, All PA Records, Reports, Profile. Sticky header with "Medical Director" role badge, notification bell, avatar, logout. If any escalated cases have exceeded the 48-hour SLA, show a prominent red banner at the top: "2 escalated PA cases have exceeded the 48-hour SLA — immediate review required" with a "Review Now →" link. Top row: 3 stat cards: (1) "Escalated Cases Pending" (large red count, alert icon), (2) "Exceeding 48-Hour SLA" (red count, clock icon), (3) "Auto-Approve Rate — Last 30 Days" (green percentage, upward trend icon). Below, a full-width "Escalated Cases Queue" table sorted by time elapsed descending. Columns: PA ID (monospace), Escalated By (adjudicator name), Escalation Reason (truncated with hover tooltip), Escalated At (datetime), Time Elapsed (shown as a bold chip — red if >48h, amber if 24–48h, green if <24h), Final Score chip (colored), Risk Flag badge, and a primary red "Review" action button. Below the escalated table, a "PA Pipeline — Last 30 Days" section showing a grouped bar chart with bars for Auto-Approved, Human Approved, Auto-Denied, Human Denied, and In Review — grouped by week. Professional high-authority medical director dashboard.
+
+═══ PAGE BREAK ═══
+
+## Page 11 — Medical Director — Escalated Case Review
+
+**[ROLE]** Medical Director
+
+**[GOAL]** Review a fully escalated PA case with complete AI analysis and adjudicator notes, and render a final clinical decision.
+
+**[WEB LAYOUT]**
+- Same layout as Adjudicator PA Review Detail (Page 8) with the following additions/changes:
+- Left panel additionally shows: adjudicator name, adjudicator notes/reason for escalation
+- Decision panel has only 2 actions: "Final Approve" (green) and "Final Deny" (red) — both require mandatory comment
+- No further escalation option (Medical Director is the highest review tier)
+
+**[COMPONENTS]**
+- All components from Page 8 (Adjudicator PA Review Detail)
+- Additional left panel section: "Escalation Details" — escalated by, escalated at, adjudicator escalation notes
+- Simplified right decision panel:
+  - SLA breach indicator (48-hour timer)
+  - "Final Approve" (green primary, mandatory conditions note)
+  - "Final Deny" (red primary, mandatory denial reason + comment)
+  - Audit trail preview showing all prior actions (PSA, Agents A/B/C, Adjudicator, Escalation)
+
+**[VISUAL DESIGN DIRECTION]**
+- Same as Page 8 but with added weight/authority visual — perhaps a slightly different header treatment indicating "Final Decision Authority"
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Escalated Case Review" page for a Medical Director in a healthcare AI PA system. Identical layout to the Adjudicator PA Review Detail page: 3-column layout with left summary panel, center 5-tab AI analysis panel, and right decision panel. Left panel additions: below the patient summary, an "Escalation Details" section showing "Escalated By: Dr. Ananya Iyer (Adjudicator)", escalation timestamp, and the adjudicator's escalation notes in a blue callout box. Center panel is identical to the adjudicator review detail — same 5 tabs (Score Breakdown, SHAP Explanation, Compliance Flags, Fraud & Anomaly, Extracted Clinical Data). Right panel differences: show a header "Final Decision Authority — Medical Director" in bold with a subtle authority indicator. SLA timer now shows time since escalation (48-hour window). Two decision buttons only: green "Final Approve" (primary, full-width) and red "Final Deny" (primary, full-width). Both require a mandatory comment modal before confirming. No "Escalate" option. Below the decision buttons, a vertical "Full Audit Trail" showing every prior event: PSA selection, Agent A/B/C completions with timestamps, initial routing decision, adjudicator assignment, adjudicator action (escalation), and Medical Director review. Each entry shows actor, action, and timestamp. Professional, authoritative final-decision medical review UI.
+
+═══ PAGE BREAK ═══
+
+## Page 12 — Admin Dashboard (Home)
+
+**[ROLE]** Admin
+
+**[GOAL]** System-wide overview of all PA pipeline activity, user management quick links, payer rule versions, timetable/calendar status, and system health.
+
+**[WEB LAYOUT]**
+- Left sidebar (260px): Dashboard, User Management, Payer & Plan Management, Rule Store, PA Queue Overview, Audit Logs, Reports, Profile
+- Sticky header: breadcrumb "Dashboard", notification bell, avatar + "Admin" role badge, logout
+- Content: 5 stat cards + pipeline status bar + recent system activity
+
+**[COMPONENTS]**
+- Stat cards (5):
+  - Total PA Requests Today (info-tone)
+  - Auto-Approved Today (green)
+  - Auto-Denied Today (red)
+  - Currently in Human Review (blue)
+  - Active API Keys (neutral count)
+- Full-width PA Pipeline Status bar: horizontal segmented bar showing count per status (PENDING, PROCESSING, SCORING, APPROVED, DENIED, REVIEW, APPEALED) with count labels and color coding
+- System Health row: 3 mini cards — AWS Textract Status (green/red), LangGraph Orchestrator Status, Database Connection Status
+- Quick action buttons: "+ Create User", "Manage Payer Rules", "View Audit Logs"
+- Recent system activity feed: last 10 system-wide events (agent completions, decisions, user logins, rule version updates)
+
+**[VISUAL DESIGN DIRECTION]**
+- System health cards: green "Operational" or red "Degraded" with icon
+- Pipeline bar: full-width, color-coded per global status system
+- Activity feed: dense, log-like, mono-spaced event labels
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design an Admin dashboard home page for a healthcare AI Prior Authorization management system. Fixed dark left sidebar (260px) with navigation: Dashboard, User Management, Payer & Plan Management, Rule Store, PA Queue Overview, Audit Logs, Reports, Profile. Sticky header with "Admin" role badge, notification bell, avatar, logout. Top row: 5 stat cards: "PA Requests Today" (info-tone), "Auto-Approved Today" (green), "Auto-Denied Today" (red), "In Human Review" (blue), "Active API Keys" (neutral). Below the stat cards, a full-width "PA Pipeline Status" section: a horizontal segmented bar spanning the full width, with each status (PENDING, PROCESSING, SCORING, APPROVED, DENIED, REVIEW, APPEALED) as a proportional colored segment with its count label. Below that, a "System Health" row with 3 mini monitoring cards: "AWS Textract OCR" (green "Operational" or red "Degraded"), "LangGraph Orchestrator" (same), "Database (PostgreSQL / MongoDB)" (same) — each with a status dot, label, and last-checked timestamp. Then a quick actions row: "+ Create User" (accent), "Manage Payer Rules" (outline), "View Audit Logs" (gray outline). Then a full-width recent system activity feed showing the last 10 events in a dense list: each entry shows a colored action dot, event description in monospace-style (e.g. "Agent B completed policy check for PA-2026-004521 — score: 78"), actor/agent name, and timestamp. Professional healthcare system admin command center.
+
+═══ PAGE BREAK ═══
+
+## Page 13 — Admin — User Management
+
+**[ROLE]** Admin
+
+**[GOAL]** Create, view, and manage all user accounts across all roles (PROVIDER, ADJUDICATOR, MEDICAL_DIRECTOR, ADMIN, AUDITOR).
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Page header: "User Management" + "+ Create User" button
+- Tabs: All / Providers / Adjudicators / Medical Directors / Admins / Auditors
+- Filter bar + data table
+
+**[COMPONENTS]**
+- Role tabs (horizontal) with count badges
+- Search + Status filter (Active/Inactive) + Export CSV
+- Users table:
+  - Columns: Name, Email, Role badge, Organization / Hospital (for providers), Status (Active/Inactive toggle badge), First Login Pending (boolean badge), Created At, Last Login, Actions (Edit, Reset Password, Deactivate)
+- "+ Create User" drawer:
+  - Full Name, Email, Role (dropdown), Organization (conditional: if role=PROVIDER), Temp password (auto-generated or manual)
+  - Submit → sends welcome email
+- Reset Password modal: set new temp password, is_first_login = true
+
+**[VISUAL DESIGN DIRECTION]**
+- Role badges: each role a distinct color (Stitch chooses)
+- "First Login Pending" badge: amber with mail icon
+- Deactivate: red text action, requires confirmation modal
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "User Management" admin page for a healthcare AI PA management system. Dark accent sidebar, sticky header with "Admin" role badge. Page title "User Management" with a primary "+ Create User" button top-right. Horizontal role filter tabs: All, Providers, Adjudicators, Medical Directors, Admins, Auditors — each with a count badge. Search bar, Active/Inactive status filter, CSV export. Table: Name, Email, Role (color-coded pill: each role a visually distinct color), Organization / Hospital (shown for Provider role, dash for others), Status (green "Active" or gray "Inactive" as a clickable toggle badge), First Login (amber "Pending" or green "Completed"), Created Date, Last Login (relative time), Actions column with an Edit icon, a Reset Password icon, and a red Deactivate icon. Clicking "+ Create User" opens a right-side drawer (480px): Full Name, Email, Role dropdown (all 5 roles), conditional "Organization / Hospital" field (shown only when Provider is selected), and "Temporary Password" field with a refresh-to-auto-generate icon. Submit creates the user and sends a welcome email. Clicking Reset Password opens a compact modal to set a new temp password. Clicking Deactivate opens a confirmation modal: "Deactivate [Name]? They will immediately lose system access." with a red Confirm and Cancel. Pagination. Clean healthcare admin user management UI.
+
+═══ PAGE BREAK ═══
+
+## Page 14 — Admin — Payer & Plan Management
+
+**[ROLE]** Admin
+
+**[GOAL]** Manage payer master records and their associated insurance plans.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Two-panel layout: left = payer list, right = selected payer's plans
+
+**[COMPONENTS]**
+- Left panel — Payer List (300px):
+  - Search payers by name
+  - "+ Add Payer" button
+  - List of payers: each row shows payer name, active plan count chip, Active/Inactive status badge
+  - Selected payer highlighted with accent left border
+- Right panel — Plans for Selected Payer:
+  - Payer name header + Edit Payer Info button
+  - "+ Add Plan" button
+  - Plans table: Plan Name, Plan ID, Plan Tier (Bronze/Silver/Gold/Platinum), PA Required flag (Y/N toggle), Active status, Actions (Edit, Deactivate)
+- Add/Edit Payer modal: Payer Name, Payer Code, Contact Email
+- Add/Edit Plan modal: Plan Name, Plan ID, Plan Tier (dropdown), PA Required toggle, effective dates
+
+**[VISUAL DESIGN DIRECTION]**
+- Plan tier badges: Bronze=warm, Silver=neutral gray, Gold=amber, Platinum=blue-indigo
+- PA Required toggle: green when ON, gray when OFF
+- Two-panel layout similar to a mail-client aesthetic
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Payer & Plan Management" admin page for a healthcare AI PA system. Dark sidebar, sticky header with "Admin" role badge. Two-panel layout: Left panel (300px, light gray background) is a scrollable list of insurance payers with a search bar at top and a "+ Add Payer" accent button. Each list item shows the payer's name in bold, a small count chip "12 plans", and an Active/Inactive status badge. The selected payer has an accent left-border highlight. Right panel (main area) shows the detail for the selected payer. Header: payer name in bold, an "Edit Payer" ghost button. Below: a "+ Add Plan" primary button and a plans table with columns: Plan Name, Plan ID (monospace), Plan Tier badge (Bronze=warm, Silver=neutral, Gold=amber, Platinum=indigo), PA Required (green toggle ON or gray OFF), Status (Active/Inactive badge), and Actions (Edit pencil icon, red Deactivate icon). Clicking "+ Add Payer" or Edit opens a compact modal: Payer Name, Payer Code, Contact Email, Active toggle, Save/Cancel. Clicking "+ Add Plan" or Edit Plan opens a modal: Plan Name, Plan ID, Plan Tier dropdown, PA Required toggle with label "Prior Authorization required for this plan", Effective From date, Effective To date (optional), Save/Cancel. Professional healthcare payer administration UI.
+
+═══ PAGE BREAK ═══
+
+## Page 15 — Admin — Rule Store Management
+
+**[ROLE]** Admin
+
+**[GOAL]** View and manage payer rule versions stored in the PostgreSQL Rule Store — the policy ruleset used by Agent B.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Page: "Rule Store"
+- Active rule versions list + version history
+
+**[COMPONENTS]**
+- Page header: "Payer Rule Store" + filter by Payer
+- Active Rules table:
+  - Columns: Rule Version ID, Payer Name, Plan Name, Rule Type (Step Therapy / Quantity Limit / Diagnosis Match / etc.), Rule Status (ACTIVE/ARCHIVED), Effective From, Effective To, Last Updated By, Actions (View, Archive)
+- "Upload New Rule Version" primary button → opens upload modal:
+  - Payer dropdown, Plan dropdown
+  - Rule Version Label (text)
+  - Rule file upload (JSON/CSV)
+  - Effective From date
+  - Warning: "Uploading will make this version active and archive the current version"
+- Rule detail drawer: full rule parameters in structured JSON viewer + compliance checks the rule triggers
+
+**[VISUAL DESIGN DIRECTION]**
+- ACTIVE rules: green status badge; ARCHIVED: gray strikethrough label
+- JSON viewer: syntax-highlighted code block
+- Archive action: requires confirmation
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Rule Store Management" admin page for a healthcare AI PA system where payer policy rules used by the AI compliance agent are managed. Dark sidebar, sticky header with "Admin" role badge. Page title "Payer Rule Store". Filter row: Payer filter dropdown, Rule Type filter (All / Step Therapy / Quantity Limit / Diagnosis Match / Coverage Exclusion), Status filter (Active / Archived), search bar, and a "+ Upload New Rule Version" primary button. Full-width table: Rule Version ID (monospace), Payer Name, Plan Name, Rule Type badge (different colors per type), Status (green "Active" badge or gray strikethrough "Archived"), Effective From date, Effective To date (or "Ongoing"), Last Updated By (admin name), Actions (a "View" eye icon and a "Archive" icon — archive requires confirmation). Clicking "View" opens a wide right drawer (560px) showing a structured rule summary — rule parameters shown in two sections: a clean data card with key-value pairs (e.g. "Step Therapy Required: Yes", "Max Quantity: 30 units"), and below it a syntax-highlighted JSON code block showing the full raw rule. Clicking "+ Upload New Rule Version" opens a modal: Payer dropdown, Plan dropdown, Rule Version Label, a file upload zone (JSON/CSV), and Effective From date picker, plus an amber warning "This will become the active rule version and archive the current one." Save/Cancel. Professional healthcare AI rule management admin UI.
+
+═══ PAGE BREAK ═══
+
+## Page 16 — Admin — Audit Log Viewer
+
+**[ROLE]** Admin, Auditor
+
+**[GOAL]** View the complete append-only audit log of all system events for compliance and HIPAA audit purposes.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Filter bar + dense audit log table
+
+**[COMPONENTS]**
+- Page title: "Audit Log" + compliance note: "Logs are retained for 7 years per HIPAA requirements. Records are append-only."
+- Filter row: PA ID search + Event Type filter (STATE_CHANGE / AGENT_COMPLETE / OVERRIDE / NOTIFICATION_SENT / USER_ACTION / SECURITY) + Actor filter + Date range + Export CSV
+- Audit log table (dense):
+  - Columns: Log ID, Timestamp (UTC), PA ID (linked), Event Type badge, From Status → To Status (for state changes), Actor, Description / Payload summary
+  - Read-only — no edit or delete actions available
+  - Pagination (50 per page for high-density log)
+- Row click: expand inline or right drawer to see full payload_json in a JSON viewer
+
+**[VISUAL DESIGN DIRECTION]**
+- Dense, log-viewer aesthetic — tight row heights, monospaced fonts for IDs and timestamps
+- Event type badges: each type a distinct color
+- "Append-only" notice: subtle persistent reminder
+- Export: CSV + optional PDF audit report generation
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design an "Audit Log Viewer" page for Admin and Auditor roles in a healthcare AI PA system. Dark sidebar, sticky header with "Admin" role badge. Page title "Audit Log" with a small compliance note: "Append-only records — 7-year retention (HIPAA). No modifications permitted." Filter row: PA ID search, Event Type filter dropdown (STATE_CHANGE / AGENT_COMPLETE / OVERRIDE / NOTIFICATION_SENT / USER_ACTION / SECURITY), Actor search, Date range picker, and "Export CSV" and "Export Audit Report (PDF)" buttons. Dense full-width audit log table with tight row heights. Columns: Log ID (small monospace), Timestamp (full UTC datetime in monospace), PA ID (as a clickable monospace link), Event Type badge (each type a distinct color: amber STATE_CHANGE, blue AGENT_COMPLETE, red OVERRIDE, teal NOTIFICATION_SENT, gray USER_ACTION, dark-red SECURITY), From → To Status (for state change events, shown as "PROCESSING → SCORING" with an arrow), Actor (agent name or user email, monospace), and a Description column (brief summary of the event). No edit or delete buttons anywhere on the page. Clicking a row expands an inline accordion or opens a right panel showing the full payload_json in a syntax-highlighted read-only JSON viewer. A persistent "Read-Only Mode — Audit logs cannot be modified" notice pinned below the table. Pagination (50 per page). Professional HIPAA-compliant audit log UI.
+
+═══ PAGE BREAK ═══
+
+## Page 17 — Admin — Reports & Downloads
+
+**[ROLE]** Admin
+
+**[GOAL]** Generate and download PA pipeline reports, approval rate reports, fraud detection summaries, and individual PA authorization documents.
+
+**[WEB LAYOUT]**
+- Same sidebar + header
+- Report type card grid + recently generated reports list
+
+**[COMPONENTS]**
+- Report type cards (3-column grid):
+  - Individual PA Authorization Document (PDF) — search by PA ID
+  - PA Pipeline Summary — date range + status filter
+  - Auto-Decision Rate Report — date range
+  - Fraud & Anomaly Summary — date range + risk flag filter
+  - Provider Performance Report — NPI search + date range
+  - HIPAA Compliance Audit Report — date range + event type filter
+- Each card: icon, title, description, filter inputs, "Generate" primary button + "Export CSV" ghost button
+- Recently Generated Reports section: filename, report type badge, generated by, date, download button
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a "Reports & Downloads" admin page for a healthcare AI PA management system. Dark sidebar, sticky header with "Admin" role badge. Page title "Reports & Downloads". A 3-column card grid of report types. Each card has an icon, a title, a short description, filter inputs, a primary "Generate Report" accent button, and a "Export CSV" ghost button. Cards: (1) "Individual PA Auth Document" — PA ID search input + Generate PDF; (2) "PA Pipeline Summary" — date range + optional status filter + Generate; (3) "Auto-Decision Rate" — date range + Generate (shows approve/deny/review breakdown); (4) "Fraud & Anomaly Summary" — date range + risk flag filter (ALL/HIGH/MEDIUM/LOW) + Generate; (5) "Provider Performance Report" — NPI number input or provider name search + date range + Generate; (6) "HIPAA Compliance Audit Report" — date range + event type filter + Generate. Below the cards, a "Recently Generated Reports" section as a compact table: Report Name (with type icon), Report Type badge, Generated By (user name), Date Generated, and a "Download" blue button. Pagination. Clean healthcare admin reporting UI.
+
+═══ PAGE BREAK ═══
+
+## Page 18 — Auditor Dashboard (Home)
+
+**[ROLE]** Auditor
+
+**[GOAL]** Read-only view of all PA records, audit logs, and compliance metrics. No decision-making capability.
+
+**[WEB LAYOUT]**
+- Left sidebar (260px): Dashboard, All PA Records, Audit Log, Compliance Reports, Profile
+- Sticky header: breadcrumb "Dashboard", notification bell, avatar + "Auditor" role badge (distinct color), logout
+- Content: compliance metric cards + recent audit events
+
+**[COMPONENTS]**
+- Auditor role notice banner: "Auditor Role — Read-Only Access. No actions may be taken." (info-tone, persistent)
+- Compliance metric cards (4):
+  - Auto-Decision Rate (Last 30 Days): % auto-approved + % auto-denied
+  - Human Override Rate: % of human review decisions that overrode AI recommendation
+  - Average Processing Time (Auto): in seconds
+  - HIPAA Audit Events: count of SECURITY-type events in last 30 days
+- Recent Audit Events table (last 20 entries, read-only)
+- "View Full Audit Log" and "Generate Compliance Report" quick links
+
+**[VISUAL DESIGN DIRECTION]**
+- Auditor role badge: distinctly styled (e.g., a dark teal or charcoal color) to visually differentiate from Admin
+- Read-only indicators throughout: no action buttons anywhere
+- Compliance metrics: clean, data-driven cards
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design an Auditor dashboard home page for a healthcare AI PA system. Fixed dark left sidebar (260px) with navigation: Dashboard, All PA Records, Audit Log, Compliance Reports, Profile. Sticky header with a distinctly styled "Auditor" role badge (use a unique color like dark teal to differentiate from Admin), notification bell, avatar, logout. A persistent info-tone banner directly below the header: "Auditor Mode — Read-Only. No actions can be taken from this account." Top row: 4 compliance metric cards: (1) "Auto-Decision Rate (30 Days)" showing two percentage bars — "Auto-Approved: 62%" in green and "Auto-Denied: 18%" in red; (2) "Human Override Rate" showing "Adjudicators overrode AI recommendation in 14% of cases" with a trend indicator; (3) "Average Auto-Processing Time" showing "74 seconds" (target ≤90s) with a green in-target indicator; (4) "HIPAA Security Events (30 Days)" showing a count of SECURITY-type audit events with a link to view them. Below, a full-width "Recent Audit Events" table (same dense style as the Audit Log Viewer page but read-only with no export or filter controls — just the last 20 entries). Quick links below the table: "View Full Audit Log →" and "Generate Compliance Report →". No action buttons, no edit icons, no approve/deny anywhere on the page. Professional compliance-focused read-only healthcare dashboard.
+
+═══ PAGE BREAK ═══
+
+## Page 19 — PA Status Detail — Patient / Portal View
+
+**[ROLE]** Patient-facing or Hospital Portal (informational read-only)
+
+**[GOAL]** Allow patients or hospital staff to check the status of a submitted PA request using their PA ID or Member ID, without exposing AI internals.
+
+**[WEB LAYOUT]**
+- Minimal layout: no role-based sidebar
+- Centered status card (max-width 640px) — accessible via direct link in SMS/WhatsApp/Email notification
+- No authentication required beyond a PA ID + Member ID verification step
+
+**[COMPONENTS]**
+- Verification gate: PA ID input + Patient Member ID input + "Check Status" button
+- PA Status card (shown after verification):
+  - PA ID (bold monospace), Payer name, Treatment type, Submitted Date
+  - Status badge (large, prominent): APPROVED / UNDER REVIEW / DENIED / IN PROGRESS
+  - If APPROVED: Auth Code in green success card + Validity Period + Conditions (plain language)
+  - If DENIED: Denial reason in plain language + "Contact your provider to submit an appeal" note
+  - If UNDER REVIEW: "Your request is being reviewed by a medical specialist. Expected response: within 24 business hours." + timeline indicator
+  - If IN PROGRESS: "Your request is being processed by our AI system. No action required." + step progress bar (generic, no technical details)
+- "Download Authorization Letter" button (if APPROVED)
+- HIPAA notice footer
+
+**[VISUAL DESIGN DIRECTION]**
+- Clean, patient-friendly, minimal technical jargon
+- Large status badge: visually clear and reassuring
+- No AI scores, SHAP values, or agent details visible to patients
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a patient-facing "PA Status Check" page for a healthcare AI Prior Authorization system — accessible via a link in SMS/WhatsApp/email notifications. No sidebar. Clean white centered card (max 640px) on a very light gray background. At the top: a simple logo and the text "Prior Authorization Status Check". A verification section with two inputs: "PA Request ID" (placeholder "PA-2026-XXXXXX") and "Patient Member ID" (placeholder "Enter your Member ID"), plus a "Check Status" accent button. After verification, show the PA Status card: PA ID in bold monospace, Payer name, treatment summary (e.g. "Specialist Referral — Cardiology"), submitted date. A large, prominent status badge (dominant visual element): green "APPROVED" or blue "UNDER REVIEW" or amber "IN PROGRESS" or red "DENIED". If APPROVED: a large green card with "Authorization Code: PA-2026-001234" in large bold monospace, a copy icon, "Valid Until: June 15, 2026", and any conditions in plain English bullet points, plus a "Download Authorization Letter (PDF)" primary green button. If DENIED: a red callout with the denial reason in plain English (e.g. "Prior treatment history not documented") and a note "Please contact your healthcare provider to submit an appeal." If UNDER REVIEW: a blue info card "A medical specialist is reviewing your request. Expected response: within 24 business hours." with a simple 3-step progress indicator (Submitted → Under Review → Decision). If IN PROGRESS: an amber card "Your request is being processed. No action required at this time." with a subtle animated progress bar. HIPAA notice footer. Clean, minimal, non-technical patient-friendly design.
+
+═══ PAGE BREAK ═══
+
+## Page 20 — Notifications Panel (All Roles)
+
+**[ROLE]** All roles
+
+**[GOAL]** View and manage all in-app notifications with timestamps and links to relevant PA records.
+
+**[WEB LAYOUT]**
+- Accessible via clicking the bell icon in the sticky header
+- Either a dropdown panel (top-right, ~400px wide, max 10 items) or a dedicated Notifications page (full-width, all notifications paginated)
+
+**[COMPONENTS]**
+- Dropdown (header bell panel):
+  - Title: "Notifications" + "Mark All Read" link
+  - List of up to 8 most recent notifications, each:
+    - Icon (type-specific: PA approved=checkmark green, denied=red X, under review=blue hourglass, document requested=amber paperclip, SLA warning=red clock, system alert=gray bell)
+    - Message text (e.g. "PA-2026-004521 has been approved — auth code ready")
+    - Timestamp (relative: "3 minutes ago")
+    - Unread dot indicator (info-tone)
+  - "View All Notifications →" link at bottom
+- Full Notifications page:
+  - Filter: All / Unread / Approvals / Denials / Reviews / Document Requests / SLA Alerts / System
+  - Same notification list but paginated, with "Mark as Read" per item
+  - Empty state: "You're all caught up ✓"
+
+**[VISUAL DESIGN DIRECTION]**
+- Unread: white background with accent left border
+- Read: light gray background
+- SLA alerts: red left border, urgent visual weight
+- Notification bell: red badge count disappears when all marked read
+
+---
+
+**[GOOGLE STITCH PROMPT]**
+
+> Design a notifications system for a healthcare AI Prior Authorization management web app. Two views: (1) Header Dropdown — clicking the bell icon opens a dropdown panel (400px wide, 500px max height, white card with shadow) top-right. Panel header: "Notifications" left, "Mark All Read" text right. Scrollable list of up to 8 notifications. Each item: a colored icon on the left in a small colored circle (green checkmark for approvals, red X for denials, blue hourglass for under review, amber paperclip for document requests, red clock for SLA warnings, gray bell for system alerts), notification message in dark text (e.g. "PA-2026-004521 approved — authorization code ready"), relative timestamp in gray ("3 minutes ago"), and an unread blue dot on the right. Unread items have a white background with a 3px left accent border; SLA alerts have a 3px left red border; read items have a subtle gray background. "View All Notifications →" link at the panel bottom. (2) Full Notifications Page — same sidebar and header. Page title "All Notifications". Filter tabs: All / Unread / Approvals / Denials / Reviews / Document Requests / SLA Alerts / System. Full paginated list (20/page), each item same structure but with full datetime (not relative) and a "Mark as Read" button on the right. Empty state: centered checkmark illustration with "You're all caught up" text. Professional healthcare notification center UI.
+
+═══ PAGE BREAK ═══
+
+---
+
+# MASTER PAGE INDEX
+
+| Page No. | Page Name | Role | SRS Section |
+|---|---|---|---|
+| 1 | Login Page | All Roles | §10.1 |
+| 2 | Provider Dashboard (Home) | Provider | §1, §2.1 |
+| 3 | Provider — Submit New PA Request | Provider | §2.1, §2.2 |
+| 4 | Provider — My PA Requests List | Provider | §7.1, §5 |
+| 5 | Provider — Upload Missing Documents | Provider | §3.4.2, §7.1 |
+| 6 | Provider — Appeal Denied PA | Provider | §5.3, §7.1 |
+| 7 | Adjudicator Dashboard (Home) | Adjudicator | §5.2, §4.2 |
+| 8 | Adjudicator — PA Review Detail | Adjudicator | §5.2, §4, §3.4 |
+| 9 | Adjudicator — Decision History | Adjudicator | §5.2, §8 |
+| 10 | Medical Director Dashboard (Home) | Medical Director | §5.2, §6 BR-13 |
+| 11 | Medical Director — Escalated Case Review | Medical Director | §5.2, §4.3 |
+| 12 | Admin Dashboard (Home) | Admin | §1, §7, §9 |
+| 13 | Admin — User Management | Admin | §10.1 |
+| 14 | Admin — Payer & Plan Management | Admin | §2.2, §8.1 |
+| 15 | Admin — Rule Store Management | Admin | §3.2, §8.1 |
+| 16 | Admin — Audit Log Viewer | Admin / Auditor | §8.1 audit_log, §10.2 |
+| 17 | Admin — Reports & Downloads | Admin | §5, §7 |
+| 18 | Auditor Dashboard (Home) | Auditor | §10.1, §10.2 |
+| 19 | PA Status Detail — Patient / Portal View | Patient / Hospital Portal | §5, §5.4 |
+| 20 | Notifications Panel (All Roles) | All Roles | §5.4 |
+
+---
+
+**TOTAL PAGE COUNT: 20 unique pages/screens**
+
+*Generated from AI-Powered Prior Authorization (PA) Workflow SRS v1.0 — React web, desktop-first layouts. Mobile views auto-generated by Google Stitch from these prompts.*
+
+Explain
+
+# Cts technoverse notes (Rajamurugan)
+
+LangGraph Orchestrates Everything
+
+Nodes:
+
+- OCR
+- Text Cleaning
+- RxNorm
+- RAG (Policy)
+- Rule Engine
+- Fraud Model
+- Decision Node
+- RAG (Explanation)
+
+Edges:
+
+- Conditional (Approve / Review / Reject)
+
+# CTS technoverse Hack
+
+![WhatsApp Image 2026-04-13 at 7.20.53 PM.jpeg](attachment:f2556179-11a3-457b-a992-3cd2fc6ccb1b:WhatsApp_Image_2026-04-13_at_7.20.53_PM.jpeg)
+
+# Plan Doc:
+
+[AuthGuard_AI_Technoverse2026.docx](attachment:037218f7-b916-42c7-a000-e94ab86138d1:AuthGuard_AI_Technoverse2026.docx)
+
+# Requirements Doc:
+
+[PA_Workflow_Requirements_v1_0.docx](attachment:b0bf77be-c041-4bad-8f4d-dacac6b57fd5:PA_Workflow_Requirements_v1_0.docx)
+
+# Google Stich Prompt:
+
+[PA_Workflow_GoogleStitch_UIPrompts.md](attachment:9bfe4948-dad5-4862-9e36-7237fc661275:PA_Workflow_GoogleStitch_UIPrompts.md)
+
+# References:
+
+[Reference](https://www.notion.so/Reference-341b6a121cf88024a3b5c01251f5181e?pvs=21)
+
+# Project PPT:
+
+[Prior Authorisation Automation.pdf](attachment:2acd4372-5c89-43ed-bf63-eb5c4ee4d8fe:Prior_Authorisation_Automation.pdf)
+
+# Temp Notes:
+
+[Cts technoverse notes (Rajamurugan)](https://www.notion.so/Cts-technoverse-notes-Rajamurugan-341b6a121cf8803b8a6fd3b19208270e?pvs=21)
+
+# Claude_Ollama_installation Doc:
+
+ollama launch claude --model pa-coder
+
+---
+
+# 🟣 1. USER AUTH & ENTRY
+
+👉 User logs in:
+
+- Patient / Agent / Admin
+
+👉 System loads role-based dashboard
+
+✔ Secure (JWT)
+
+✔ Controlled access
+
+---
+
+# 🟦 2. POLICY ENGINE (SMART START)
+
+👉 Patient selects:
+
+- Insurance
+- Treatment
+
+👉 System shows:
+
+- Required documents
+
+✔ Based on policy dataset
+
+✔ Prevents invalid submissions
+
+---
+
+# 🟩 3. DOCUMENT UPLOAD
+
+👉 Upload:
+
+- Prescription
+- Bills
+- Reports
+
+✔ Real-world documents (from dataset you collected)
+
+---
+
+# 🟨 4. OCR PROCESSING
+
+👉 OCR extracts text
+
+📄 Output:
+
+Raw messy text
+
+✔ Works on handwritten + printed
+
+---
+
+# 🟧 5. TEXT CLEANING & EXTRACTION
+
+👉 Clean text:
+
+- Remove noise
+- Extract key info
+
+✔ Extract:
+
+- Diagnosis
+- Medicines
+- Procedures
+- Cost
+
+---
+
+# 🟪 6. SMART CORRECTION
+
+👉 Fix OCR mistakes
+
+✔ Using fuzzy matching + medicine dataset
+
+Example:
+
+paracetomal → paracetamol
+
+---
+
+# 💊 7. MEDICAL VALIDATION
+
+👉 Validate medicines
+
+✔ RxNorm / medicine dataset
+
+✔ Ensure real medical data
+
+---
+
+# 🏥 8. DATA STRUCTURING (FHIR)
+
+👉 Convert into structured JSON
+
+✔ Standard format
+
+✔ Ready for processing
+
+---
+
+# ✅ 9. VALIDATION ENGINE
+
+👉 Check:
+
+- Missing documents
+- Diagnosis vs treatment mismatch
+- Cost boundaries (₹)
+- Policy rules
+
+✔ Uses policy dataset
+
+---
+
+# 📊 10. CLAIM HISTORY CHECK
+
+👉 Compare with past claims
+
+✔ Detect:
+
+- Duplicate claims
+- Repeated procedures
+- Cost anomalies
+
+---
+
+# 🚨 11. FRAUD DETECTION ENGINE (🔥 CORE)
+
+👉 Detect:
+
+- Upcoding
+- Duplicate billing
+- Phantom claims
+- Overutilization
+
+👉 Output:
+
+- Fraud score (0–100)
+- Fraud reasons
+
+---
+
+# 🧠 12. LLM REASONING LAYER
+
+👉 Input to Gemini:
+
+- Extracted data
+- Validation result
+- Fraud score
+
+👉 If Gemini fails → fallback to Sonar
+
+✔ Generates:
+
+- Decision reasoning
+- Explanation
+
+---
+
+# ⚖️ 13. DECISION ENGINE
+
+👉 Combine all signals
+
+| Condition | Decision |
+| --- | --- |
+| Low risk | APPROVE |
+| Medium | REVIEW |
+| High | REJECT |
+
+---
+
+# 💬 14. EXPLAINABILITY OUTPUT
+
+👉 Show:
+
+- Decision
+- Fraud score
+- Reasons
+
+✔ Transparent + human readable
+
+---
+
+# 🖥️ 15. DASHBOARDS
+
+---
+
+## 👤 Patient
+
+- Upload docs
+- Track status
+- View explanation
+
+---
+
+## 🧑‍💼 Agent
+
+- View all claims
+- Filter high-risk
+- Manual override
+
+---
+
+## 🛠️ Admin
+
+- Manage users
+- Configure rules
+- View analytics
+
+---
+
+# 🔐 16. SECURITY LAYER
+
+✔ JWT auth
+
+✔ Role-based access
+
+✔ Input validation
+
+✔ Rate limiting
+
+✔ Audit logs
+
+---
+
+# 📈 17. ANALYTICS
+
+👉 Show:
+
+- Fraud trends
+- Approval rates
+- Cost insights
+
+---
+
+# 🧠 18. DATA LOOP (VERY IMPORTANT — ADVANCED)
+
+👉 System improves over time:
+
+- Store decisions
+- Store fraud cases
+- Update rules
+
+✔ Makes system smarter

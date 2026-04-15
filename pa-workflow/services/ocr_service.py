@@ -1,55 +1,45 @@
-import boto3
-from botocore.client import BaseClient
-from botocore.exceptions import ClientError
 import logging
+from typing import Tuple
 
-from ..core.config import settings
+from PIL import Image
+import pytesseract
+from pdf2image import convert_from_path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_textract_client() -> BaseClient:
-    """Initializes and returns a boto3 client for AWS Textract."""
-    try:
-        return boto3.client(
-            "textract",
-            region_name=settings.AWS_REGION,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        )
-    except ClientError as e:
-        logger.error(f"Error creating Textract client: {e}")
-        raise
+def _confidence_from_tesseract_data(data: dict) -> float:
+    conf_values = []
+    for raw in data.get("conf", []):
+        try:
+            value = float(raw)
+            if value >= 0:
+                conf_values.append(value)
+        except (TypeError, ValueError):
+            continue
+    if not conf_values:
+        return 0.0
+    return sum(conf_values) / (len(conf_values) * 100.0)
 
-def get_s3_client() -> BaseClient:
-    """Initializes and returns a boto3 client for AWS S3."""
-    try:
-        return boto3.client(
-            "s3",
-            region_name=settings.AWS_REGION,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        )
-    except ClientError as e:
-        logger.error(f"Error creating S3 client: {e}")
-        raise
 
-def upload_to_s3(file_path: str, object_name: str = None) -> str:
-    """
-    Upload a file to an S3 bucket.
+def extract_text_from_image(image_path: str) -> Tuple[str, float]:
+    """Extract text and confidence from an image using Tesseract."""
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)
+    data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+    confidence = _confidence_from_tesseract_data(data)
+    return text, confidence
 
-    :param file_path: File to upload
-    :param object_name: S3 object name. If not specified, file_path is used
-    :return: The S3 key of the uploaded object.
-    """
-    if object_name is None:
-        object_name = file_path.split("/")[-1]
 
-    s3_client = get_s3_client()
-    try:
-        s3_client.upload_file(file_path, settings.AWS_S3_BUCKET_NAME, object_name)
-        logger.info(f"File '{file_path}' uploaded to S3 bucket '{settings.AWS_S3_BUCKET_NAME}' as '{object_name}'.")
-        return object_name
-    except ClientError as e:
-        logger.error(f"Error uploading file to S3: {e}")
-        raise
+def extract_text_from_pdf(pdf_path: str) -> Tuple[str, float, int]:
+    """Extract text from each PDF page by converting pages to images."""
+    pages = convert_from_path(pdf_path)
+    texts = []
+    confidences = []
+    for page in pages:
+        text = pytesseract.image_to_string(page)
+        data = pytesseract.image_to_data(page, output_type=pytesseract.Output.DICT)
+        texts.append(text)
+        confidences.append(_confidence_from_tesseract_data(data))
+    avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+    return "\n".join(texts), avg_conf, len(pages)
