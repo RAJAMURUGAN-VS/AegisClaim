@@ -15,6 +15,44 @@ from models.postgres_models import BundledCPTRules, FraudDetectionConfig, Specia
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Configuration Loader for Agent C ---
+
+class FraudConfigLoader:
+    """Loads fraud detection configurations from PostgreSQL database."""
+    
+    def __init__(self, db_session: AsyncSession, payer_id: UUID):
+        self.db_session = db_session
+        self.payer_id = payer_id
+        self.config_cache = {}
+    
+    async def get_anomaly_config(self, anomaly_type: str) -> Optional[FraudDetectionConfig]:
+        """Load configurable fraud detection configuration for anomaly type."""
+        if anomaly_type in self.config_cache:
+            return self.config_cache[anomaly_type]
+        
+        stmt = select(FraudDetectionConfig).where(
+            FraudDetectionConfig.payer_id == self.payer_id,
+            FraudDetectionConfig.anomaly_type == anomaly_type,
+            FraudDetectionConfig.is_active == True
+        )
+        result = await self.db_session.execute(stmt)
+        config = result.scalar_one_or_none()
+        
+        if config:
+            self.config_cache[anomaly_type] = config
+        return config
+    
+    async def get_specialty_threshold(self, specialty: str) -> Optional[int]:
+        """Get max claims per day for specialty."""
+        stmt = select(SpecialtyBillingThresholds).where(
+            SpecialtyBillingThresholds.specialty == specialty,
+            SpecialtyBillingThresholds.payer_id == self.payer_id,
+            SpecialtyBillingThresholds.is_active == True
+        )
+        result = await self.db_session.execute(stmt)
+        threshold = result.scalar_one_or_none()
+        return threshold.max_claims_per_day if threshold else None
+
 # --- Dataclasses for Agent C ---
 
 @dataclass
@@ -55,6 +93,7 @@ class FraudAnomalyAgent:
         self.claims_collection = self.db.claims_history
         self.db_session = db_session
         self.payer_id = payer_id
+        self.config_loader = FraudConfigLoader(db_session, payer_id)
 
     async def analyze(
         self, pa_id: UUID, patient_member_id: str, provider_npi: str, cpt_codes: List[str], billed_amount: float, provider_specialty: str = "General"
@@ -93,6 +132,18 @@ class FraudAnomalyAgent:
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
         sixty_days_ago = datetime.utcnow() - timedelta(days=60)
         
+        # Load configurable thresholds from database (with safe defaults)
+        dup_config = await self.config_loader.get_anomaly_config("DUPLICATE_CLAIM")
+        dup_threshold = dup_config.statistical_threshold if (dup_config and dup_config.statistical_threshold) else 3.0
+        
+        freq_config = await self.config_loader.get_anomaly_config("HIGH_FREQUENCY")
+        freq_threshold = freq_config.statistical_threshold if (freq_config and freq_config.statistical_threshold) else 10.0
+        
+        spike_config = await self.config_loader.get_anomaly_config("FREQUENCY_SPIKE")
+        spike_threshold = spike_config.statistical_threshold if (spike_config and spike_config.statistical_threshold) else 50.0
+        
+        logger.debug(f"[Claim History] Using thresholds - Duplicate: {dup_threshold}, Frequency: {freq_threshold}, Spike: {spike_threshold}%")
+        
         # Get 30-day claim counts
         pipeline_30 = [
             {"$match": {"patient_member_id": patient_member_id, "claims.claim_date": {"$gte": thirty_days_ago}}},
@@ -123,22 +174,22 @@ class FraudAnomalyAgent:
         async for doc in self.claims_collection.aggregate(pipeline_60):
             cpt_counts_60[doc['_id']] = doc['count']
 
-        # Check for duplicate claims (same CPT)
+        # Check for duplicate claims (same CPT) - using configurable threshold
         for cpt in cpt_codes:
-            if cpt_counts_30.get(cpt, 0) > 3:
-                anomalies.append(AnomalyFlag(flag_type="DUPLICATE_CLAIM", severity="MEDIUM", details={"cpt": cpt, "count": cpt_counts_30[cpt]}, detected_at=datetime.utcnow()))
+            if cpt_counts_30.get(cpt, 0) > dup_threshold:
+                anomalies.append(AnomalyFlag(flag_type="DUPLICATE_CLAIM", severity="MEDIUM", details={"cpt": cpt, "count": cpt_counts_30[cpt], "threshold": dup_threshold}, detected_at=datetime.utcnow()))
 
-        # Check for high frequency (total claims)
+        # Check for high frequency (total claims) - using configurable threshold
         total_claims_30 = sum(cpt_counts_30.values())
-        if total_claims_30 > 10:
-            anomalies.append(AnomalyFlag(flag_type="HIGH_FREQUENCY", severity="LOW", details={"total_claims": total_claims_30}, detected_at=datetime.utcnow()))
+        if total_claims_30 > freq_threshold:
+            anomalies.append(AnomalyFlag(flag_type="HIGH_FREQUENCY", severity="LOW", details={"total_claims": total_claims_30, "threshold": freq_threshold}, detected_at=datetime.utcnow()))
 
-        # Check for frequency spike (30-day vs 60-day comparison)
+        # Check for frequency spike (30-day vs 60-day comparison) - using configurable threshold
         total_claims_60 = sum(cpt_counts_60.values())
         if total_claims_60 > 0:
             frequency_increase_pct = ((total_claims_30 - total_claims_60) / total_claims_60) * 100
-            if frequency_increase_pct > 40:  # 40% increase triggers spike
-                anomalies.append(AnomalyFlag(flag_type="FREQUENCY_SPIKE", severity="MEDIUM", details={"increase_pct": frequency_increase_pct, "claims_30d": total_claims_30, "claims_60d": total_claims_60}, detected_at=datetime.utcnow()))
+            if frequency_increase_pct > spike_threshold:  # Configurable threshold per payer
+                anomalies.append(AnomalyFlag(flag_type="FREQUENCY_SPIKE", severity="MEDIUM", details={"increase_pct": frequency_increase_pct, "claims_30d": total_claims_30, "claims_60d": total_claims_60, "threshold_pct": spike_threshold}, detected_at=datetime.utcnow()))
 
         return CheckResult("claim_history", passed=not anomalies, anomalies_found=anomalies)
 
@@ -175,7 +226,7 @@ class FraudAnomalyAgent:
         
         # Determine risk level based on denial rate and reversal rate
         risk_level = "LOW"
-        if denial_rate > 0.30 or claim_reversal_rate > 0.12:
+        if denial_rate > 0.30 or claim_reversal_rate >= 0.12:  # Use >= to include boundary case
             risk_level = "HIGH"
         elif denial_rate > 0.15 or claim_reversal_rate > 0.08:
             risk_level = "MEDIUM"
@@ -239,28 +290,52 @@ class FraudAnomalyAgent:
         return anomalies
 
     async def _detect_upcoding(self, provider_npi: str, cpt_codes: List[str], billed_amount: float) -> Optional[AnomalyFlag]:
-        """Detects upcoding by comparing billed amount against provider's average."""
+        """Detects upcoding using IQR (Interquartile Range) statistical method."""
         if not cpt_codes:
             return None
 
         main_cpt = cpt_codes[0]
-        avg_pipeline = [
+        
+        # Get all billing amounts for this CPT to calculate IQR
+        amounts_pipeline = [
             {"$match": {"provider_npi": provider_npi}},
             {"$unwind": "$claims"},
             {"$match": {"claims.cpt_code": main_cpt}},
-            {"$group": {"_id": "$claims.cpt_code", "avg_billed": {"$avg": "$claims.billed_amount"}}}
+            {"$group": {"_id": "$claims.cpt_code", "amounts": {"$push": "$claims.billed_amount"}}}
         ]
-        avg_result = await self.claims_collection.aggregate(avg_pipeline).to_list(1)
+        amounts_result = await self.claims_collection.aggregate(amounts_pipeline).to_list(1)
         
-        if avg_result and avg_result[0]['avg_billed'] > 0:
-            avg_billed = float(avg_result[0]['avg_billed'])
-            if billed_amount > 3 * avg_billed:
-                return AnomalyFlag(
-                    flag_type="UPCODING_DETECTED",
-                    severity="HIGH",
-                    details={"cpt": main_cpt, "billed": billed_amount, "average": avg_billed},
-                    detected_at=datetime.utcnow()
-                )
+        if not amounts_result or len(amounts_result[0]['amounts']) < 10:
+            # Not enough samples for statistical analysis, use fallback
+            return None
+        
+        amounts = sorted(amounts_result[0]['amounts'])
+        n = len(amounts)
+        
+        # Calculate Q1 (25th percentile) and Q3 (75th percentile)
+        q1_idx = n // 4
+        q3_idx = (3 * n) // 4
+        q1 = amounts[q1_idx]
+        q3 = amounts[q3_idx]
+        iqr = q3 - q1
+        
+        # Upper bound = Q3 + (1.5 * IQR) - per dataset statistical specifications
+        upper_bound = q3 + (1.5 * iqr)
+        
+        if billed_amount > upper_bound:
+            return AnomalyFlag(
+                flag_type="UPCODING_DETECTED",
+                severity="HIGH",
+                details={
+                    "cpt": main_cpt, 
+                    "billed": billed_amount, 
+                    "iqr_upper_bound": round(upper_bound, 2),
+                    "q1": round(q1, 2),
+                    "q3": round(q3, 2),
+                    "iqr": round(iqr, 2)
+                },
+                detected_at=datetime.utcnow()
+            )
         return None
 
     async def _detect_impossible_billing(self, provider_npi: str, provider_specialty: str) -> Optional[AnomalyFlag]:
@@ -274,8 +349,9 @@ class FraudAnomalyAgent:
         threshold_result = await self.db_session.execute(stmt)
         threshold = threshold_result.scalar_one_or_none()
 
-        # Default to 24 if no specialty-specific threshold found
-        max_claims_per_day = threshold.max_claims_per_day if threshold else 24
+        # Default to 8 (conservative default) if no specialty-specific threshold found
+        # This is more conservative than the old default of 24, protecting primary care specialties
+        max_claims_per_day = threshold.max_claims_per_day if threshold else 8
 
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         day_pipeline = [
@@ -353,7 +429,7 @@ class FraudAnomalyAgent:
                 score -= 15
 
         # Apply claim reversal rate penalty if elevated
-        if provider_risk.claim_reversal_rate > 0.12:
+        if provider_risk.claim_reversal_rate >= 0.12:  # Use >= to include boundary case
             config = fraud_configs.get("CLAIM_REVERSAL_RATE")
             if config:
                 multiplier = config.severity_multiplier.get("HIGH", 1.0)

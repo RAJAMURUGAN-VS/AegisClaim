@@ -1,0 +1,362 @@
+{
+  "postgresql_tables": {
+    "bundled_cpt_rules": {
+      "table_name": "bundled_cpt_rules",
+      "description": "Rules defining CPT codes that should not be billed together (unbundling detection)",
+      "schema": {
+        "rule_id": {
+          "type": "UUID",
+          "primary_key": true,
+          "default": "uuid.uuid4()"
+        },
+        "primary_cpt": {
+          "type": "VARCHAR(16)",
+          "nullable": false
+        },
+        "secondary_cpt": {
+          "type": "VARCHAR(16)",
+          "nullable": false
+        },
+        "rule_description": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "payer_id": {
+          "type": "UUID",
+          "foreign_key": "payer_master.payer_id",
+          "nullable": true
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "default": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "default": "now()"
+        }
+      },
+      "sample_records": [
+        {
+          "rule_id": "uuid-bundled-001",
+          "primary_cpt": "99214",
+          "secondary_cpt": "99291",
+          "rule_description": "Cannot bill office visit with critical care on same day",
+          "payer_id": "uuid-aetna-001",
+          "is_active": true,
+          "created_at": "2024-01-15T08:00:00Z"
+        },
+        {
+          "rule_id": "uuid-bundled-002",
+          "primary_cpt": "70450",
+          "secondary_cpt": "70460",
+          "rule_description": "CT head with contrast and without contrast - bill only one",
+          "payer_id": "uuid-aetna-001",
+          "is_active": true,
+          "created_at": "2024-01-15T08:00:00Z"
+        },
+        {
+          "rule_id": "uuid-bundled-003",
+          "primary_cpt": "99213",
+          "secondary_cpt": "99214",
+          "rule_description": "New vs established patient office visit - select one only",
+          "payer_id": "uuid-united-001",
+          "is_active": true,
+          "created_at": "2024-01-15T08:00:00Z"
+        },
+        {
+          "rule_id": "uuid-bundled-004",
+          "primary_cpt": "94010",
+          "secondary_cpt": "94060",
+          "rule_description": "Spirometry with and without bronchodilator - cannot bill same day",
+          "payer_id": "uuid-cigna-001",
+          "is_active": true,
+          "created_at": "2024-01-15T08:00:00Z"
+        },
+        {
+          "rule_id": "uuid-bundled-005",
+          "primary_cpt": "99285",
+          "secondary_cpt": "99291",
+          "rule_description": "ER visit and critical care - cannot bill together",
+          "payer_id": null,
+          "is_active": true,
+          "created_at": "2024-01-15T08:00:00Z"
+        }
+      ]
+    },
+    "fraud_detection_config": {
+      "table_name": "fraud_detection_config",
+      "description": "Configurable fraud detection weights and thresholds per payer",
+      "schema": {
+        "config_id": {
+          "type": "UUID",
+          "primary_key": true
+        },
+        "payer_id": {
+          "type": "UUID",
+          "foreign_key": "payer_master.payer_id",
+          "nullable": false
+        },
+        "anomaly_type": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "enum": ["DUPLICATE_CLAIM", "HIGH_FREQUENCY", "UPCODING_DETECTED", "POTENTIAL_UNBUNDLING", "IMPOSSIBLE_DAY_BILLING", "FREQUENCY_SPIKE", "PROVIDER_RISK_ADJUSTMENT", "CLAIM_REVERSAL_RATE"]
+        },
+        "base_deduction": {
+          "type": "NUMERIC(5,2)",
+          "description": "Base score deduction (negative value)"
+        },
+        "severity_multiplier": {
+          "type": "JSONB",
+          "example": {
+            "LOW": 0.5,
+            "MEDIUM": 1.0,
+            "HIGH": 1.5
+          }
+        },
+        "statistical_threshold": {
+          "type": "NUMERIC(5,2)",
+          "description": "For IQR method: 1.5, Z-score: 2.0, Percentile: 75"
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "default": true
+        },
+        "effective_date": {
+          "type": "DATE"
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "default": "now()"
+        }
+      },
+      "sample_records": [
+        {
+          "config_id": "uuid-fraud-config-001",
+          "payer_id": "uuid-aetna-001",
+          "anomaly_type": "DUPLICATE_CLAIM",
+          "base_deduction": -25.0,
+          "severity_multiplier": {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5},
+          "statistical_threshold": null,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        },
+        {
+          "config_id": "uuid-fraud-config-002",
+          "payer_id": "uuid-aetna-001",
+          "anomaly_type": "UPCODING_DETECTED",
+          "base_deduction": -25.0,
+          "severity_multiplier": {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5},
+          "statistical_threshold": 1.5,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        },
+        {
+          "config_id": "uuid-fraud-config-003",
+          "payer_id": "uuid-aetna-001",
+          "anomaly_type": "POTENTIAL_UNBUNDLING",
+          "base_deduction": -20.0,
+          "severity_multiplier": {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5},
+          "statistical_threshold": null,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        },
+        {
+          "config_id": "uuid-fraud-config-004",
+          "payer_id": "uuid-aetna-001",
+          "anomaly_type": "IMPOSSIBLE_DAY_BILLING",
+          "base_deduction": -30.0,
+          "severity_multiplier": {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5},
+          "statistical_threshold": null,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        },
+        {
+          "config_id": "uuid-fraud-config-005",
+          "payer_id": "uuid-aetna-001",
+          "anomaly_type": "PROVIDER_RISK_ADJUSTMENT",
+          "base_deduction": -30.0,
+          "severity_multiplier": {"LOW": 0.25, "MEDIUM": 0.5, "HIGH": 1.0},
+          "statistical_threshold": null,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        },
+        {
+          "config_id": "uuid-fraud-config-006",
+          "payer_id": "uuid-united-001",
+          "anomaly_type": "DUPLICATE_CLAIM",
+          "base_deduction": -20.0,
+          "severity_multiplier": {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5},
+          "statistical_threshold": null,
+          "is_active": true,
+          "effective_date": "2024-04-01",
+          "created_at": "2024-03-15T08:00:00Z"
+        }
+      ]
+    },
+    "specialty_billing_thresholds": {
+      "table_name": "specialty_billing_thresholds",
+      "description": "Specialty-specific thresholds for anomaly detection (impossible billing)",
+      "schema": {
+        "threshold_id": {
+          "type": "UUID",
+          "primary_key": true
+        },
+        "specialty": {
+          "type": "VARCHAR(50)",
+          "nullable": false
+        },
+        "max_claims_per_day": {
+          "type": "INTEGER",
+          "description": "Maximum reasonable claims per day for this specialty"
+        },
+        "max_claims_per_week": {
+          "type": "INTEGER"
+        },
+        "avg_billing_amount": {
+          "type": "NUMERIC(10,2)",
+          "description": "Average billing amount for peer group"
+        },
+        "payer_id": {
+          "type": "UUID",
+          "foreign_key": "payer_master.payer_id",
+          "nullable": true
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "default": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "default": "now()"
+        }
+      },
+      "sample_records": [
+        {
+          "threshold_id": "uuid-specialty-001",
+          "specialty": "Orthopedic Surgery",
+          "max_claims_per_day": 8,
+          "max_claims_per_week": 40,
+          "avg_billing_amount": 1200.00,
+          "payer_id": "uuid-aetna-001",
+          "is_active": true,
+          "created_at": "2024-02-01T08:00:00Z"
+        },
+        {
+          "threshold_id": "uuid-specialty-002",
+          "specialty": "Family Practice",
+          "max_claims_per_day": 4,
+          "max_claims_per_week": 20,
+          "avg_billing_amount": 250.00,
+          "payer_id": "uuid-aetna-001",
+          "is_active": true,
+          "created_at": "2024-02-01T08:00:00Z"
+        },
+        {
+          "threshold_id": "uuid-specialty-003",
+          "specialty": "Radiology",
+          "max_claims_per_day": 20,
+          "max_claims_per_week": 100,
+          "avg_billing_amount": 450.00,
+          "payer_id": "uuid-united-001",
+          "is_active": true,
+          "created_at": "2024-02-01T08:00:00Z"
+        },
+        {
+          "threshold_id": "uuid-specialty-004",
+          "specialty": "Laboratory",
+          "max_claims_per_day": 50,
+          "max_claims_per_week": 250,
+          "avg_billing_amount": 75.00,
+          "payer_id": null,
+          "is_active": true,
+          "created_at": "2024-02-01T08:00:00Z"
+        },
+        {
+          "threshold_id": "uuid-specialty-005",
+          "specialty": "Anesthesia",
+          "max_claims_per_day": 6,
+          "max_claims_per_week": 30,
+          "avg_billing_amount": 800.00,
+          "payer_id": null,
+          "is_active": true,
+          "created_at": "2024-02-01T08:00:00Z"
+        }
+      ]
+    },
+    "cpt_bundling_groups": {
+      "table_name": "cpt_bundling_groups",
+      "description": "Groups of CPT codes with bundling rules",
+      "schema": {
+        "group_id": {
+          "type": "UUID",
+          "primary_key": true
+        },
+        "group_name": {
+          "type": "VARCHAR(100)"
+        },
+        "cpt_codes": {
+          "type": "JSONB",
+          "description": "Array of CPT codes in this group"
+        },
+        "bundle_type": {
+          "type": "VARCHAR(50)",
+          "enum": ["MUTUALLY_EXCLUSIVE", "PARENT_CHILD", "UNBUNDLING", "FREQUENCY_LIMITED"]
+        },
+        "rule_description": {
+          "type": "TEXT"
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "default": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "default": "now()"
+        }
+      },
+      "sample_records": [
+        {
+          "group_id": "uuid-group-001",
+          "group_name": "Office Visit Levels",
+          "cpt_codes": ["99213", "99214", "99215"],
+          "bundle_type": "MUTUALLY_EXCLUSIVE",
+          "rule_description": "Select only one office visit level per encounter",
+          "is_active": true,
+          "created_at": "2024-02-10T08:00:00Z"
+        },
+        {
+          "group_id": "uuid-group-002",
+          "group_name": "CT Head Studies",
+          "cpt_codes": ["70450", "70460"],
+          "bundle_type": "MUTUALLY_EXCLUSIVE",
+          "rule_description": "Cannot bill both CT with and without contrast on same day",
+          "is_active": true,
+          "created_at": "2024-02-10T08:00:00Z"
+        },
+        {
+          "group_id": "uuid-group-003",
+          "group_name": "Spirometry Tests",
+          "cpt_codes": ["94010", "94060"],
+          "bundle_type": "FREQUENCY_LIMITED",
+          "rule_description": "Spirometry with and without bronchodilator - limit frequency",
+          "is_active": true,
+          "created_at": "2024-02-10T08:00:00Z"
+        },
+        {
+          "group_id": "uuid-group-004",
+          "group_name": "ER and Critical Care",
+          "cpt_codes": ["99285", "99291", "99292"],
+          "bundle_type": "MUTUALLY_EXCLUSIVE",
+          "rule_description": "Cannot bill ER and critical care on same date",
+          "is_active": true,
+          "created_at": "2024-02-10T08:00:00Z"
+        }
+      ]
+    }
+  }
+}

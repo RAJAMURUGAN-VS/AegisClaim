@@ -1,0 +1,74 @@
+{
+  "fraud_scoring_formula": {
+    "description": "How Agent C calculates final fraud score",
+    "formula": "fraud_score = 100.0 - sum(deductions) - provider_risk_adjustment",
+    "components": {
+      "base_score": 100.0,
+      "deductions": {
+        "DUPLICATE_CLAIM": {
+          "base": -25.0,
+          "severity_multipliers": {
+            "LOW": -12.5,
+            "MEDIUM": -25.0,
+            "HIGH": -37.5
+          }
+        },
+        "HIGH_FREQUENCY": {
+          "base": -15.0,
+          "severity_multipliers": {
+            "LOW": -7.5,
+            "MEDIUM": -15.0,
+            "HIGH": -22.5
+          }
+        },
+        "UPCODING_DETECTED": {
+          "base": -25.0,
+          "severity_multipliers": {
+            "LOW": -12.5,
+            "MEDIUM": -25.0,
+            "HIGH": -37.5
+          }
+        },
+        "POTENTIAL_UNBUNDLING": {
+          "base": -20.0,
+          "severity_multipliers": {
+            "LOW": -10.0,
+            "MEDIUM": -20.0,
+            "HIGH": -30.0
+          }
+        },
+        "IMPOSSIBLE_DAY_BILLING": {
+          "base": -30.0,
+          "severity_multipliers": {
+            "LOW": -15.0,
+            "MEDIUM": -30.0,
+            "HIGH": -45.0
+          }
+        },
+        "FREQUENCY_SPIKE": {
+          "base": -15.0,
+          "severity_multipliers": {
+            "LOW": -7.5,
+            "MEDIUM": -15.0,
+            "HIGH": -22.5
+          }
+        }
+      },
+      "provider_risk_adjustment": {
+        "HIGH": -30.0,
+        "MEDIUM": -15.0,
+        "LOW": 0.0
+      }
+    },
+    "risk_flag_assignment": {
+      "LOW": "fraud_score >= 70",
+      "MEDIUM": "fraud_score >= 40 AND < 70",
+      "HIGH": "fraud_score < 40"
+    },
+    "example_calculation": {
+      "scenario": "Provider with UPCODING_DETECTED (HIGH) and provider_risk=MEDIUM",
+      "calculation": "100.0 - 37.5 (upcoding) - 15.0 (provider_risk) = 47.5",
+      "resulting_risk_flag": "MEDIUM"
+    }
+  }
+}

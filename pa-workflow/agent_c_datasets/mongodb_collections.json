@@ -1,0 +1,274 @@
+{
+  "mongodb_collections": {
+    "claims_history": {
+      "collection_name": "claims_history",
+      "description": "Historical claims data for fraud detection and pattern analysis",
+      "indexes": [
+        {
+          "name": "patient_member_id_idx",
+          "fields": [["patient_member_id", 1]]
+        },
+        {
+          "name": "provider_npi_idx",
+          "fields": [["provider_npi", 1]]
+        },
+        {
+          "name": "claim_date_idx",
+          "fields": [["claims.claim_date", -1]]
+        }
+      ],
+      "sample_documents": [
+        {
+          "_id": "ObjectId('507f1f77bcf86cd799439011')",
+          "patient_member_id": "MEM001234",
+          "provider_npi": "1234567890",
+          "claims": [
+            {
+              "claim_date": "2024-04-10T10:30:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "I10",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-001",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-03-15T14:20:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "I10",
+              "billed_amount": 245.00,
+              "paid_amount": 170.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-002",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-02-08T09:15:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "I10",
+              "billed_amount": 750.00,
+              "paid_amount": 175.00,
+              "status": "DENIED",
+              "pa_id": "PA-UUID-003",
+              "denial_reason": "UPCODING_DETECTED"
+            },
+            {
+              "claim_date": "2024-01-20T11:45:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "I10",
+              "billed_amount": 248.00,
+              "paid_amount": 172.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-004",
+              "denial_reason": null
+            }
+          ],
+          "provider_risk_score": 0.15,
+          "anomaly_flags": [],
+          "last_evaluated_at": "2024-04-10T10:30:00Z"
+        },
+        {
+          "_id": "ObjectId('507f1f77bcf86cd799439012')",
+          "patient_member_id": "MEM005678",
+          "provider_npi": "9876543210",
+          "claims": [
+            {
+              "claim_date": "2024-04-05T08:00:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "E11.9",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-005",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-04-05T08:30:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "E11.9",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-006",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-04-05T09:00:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "E11.9",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-007",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-04-05T09:30:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "E11.9",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-008",
+              "denial_reason": null
+            },
+            {
+              "claim_date": "2024-04-05T10:00:00Z",
+              "cpt_code": "99214",
+              "icd10_code": "E11.9",
+              "billed_amount": 250.00,
+              "paid_amount": 175.00,
+              "status": "APPROVED",
+              "pa_id": "PA-UUID-009",
+              "denial_reason": null
+            }
+          ],
+          "provider_risk_score": 0.65,
+          "anomaly_flags": [
+            {
+              "flag_type": "HIGH_FREQUENCY",
+              "severity": "MEDIUM",
+              "details": {
+                "total_claims": 5,
+                "timeframe_hours": 2
+              },
+              "detected_at": "2024-04-05T10:30:00Z"
+            }
+          ],
+          "last_evaluated_at": "2024-04-05T10:30:00Z"
+        },
+        {
+          "_id": "ObjectId('507f1f77bcf86cd799439013')",
+          "patient_member_id": "MEM009999",
+          "provider_npi": "5555555555",
+          "claims": [
+            {
+              "claim_date": "2024-04-01T10:00:00Z",
+              "cpt_code": "70450",
+              "icd10_code": "R51",
+              "billed_amount": 900.00,
+              "paid_amount": 0.00,
+              "status": "DENIED",
+              "pa_id": "PA-UUID-010",
+              "denial_reason": "UNBUNDLING"
+            },
+            {
+              "claim_date": "2024-04-01T10:15:00Z",
+              "cpt_code": "70460",
+              "icd10_code": "R51",
+              "billed_amount": 900.00,
+              "paid_amount": 0.00,
+              "status": "DENIED",
+              "pa_id": "PA-UUID-011",
+              "denial_reason": "UNBUNDLING"
+            }
+          ],
+          "provider_risk_score": 0.85,
+          "anomaly_flags": [
+            {
+              "flag_type": "POTENTIAL_UNBUNDLING",
+              "severity": "HIGH",
+              "details": {
+                "bundled_cpts": ["70450", "70460"],
+                "rule": "CT head with and without contrast - only one allowed"
+              },
+              "detected_at": "2024-04-01T10:30:00Z"
+            }
+          ],
+          "last_evaluated_at": "2024-04-01T10:30:00Z"
+        }
+      ]
+    },
+    "provider_risk_profile": {
+      "collection_name": "provider_risk_profile",
+      "description": "Aggregated provider risk metrics and fraud indicators",
+      "indexes": [
+        {
+          "name": "provider_npi_payer_id_idx",
+          "fields": [["provider_npi", 1], ["payer_id", 1]],
+          "unique": true
+        },
+        {
+          "name": "risk_level_idx",
+          "fields": [["risk_level", 1]]
+        },
+        {
+          "name": "last_evaluated_idx",
+          "fields": [["last_evaluated", -1]]
+        }
+      ],
+      "sample_documents": [
+        {
+          "_id": "ObjectId('607f1f77bcf86cd799439001')",
+          "provider_npi": "1234567890",
+          "payer_id": "uuid-aetna-001",
+          "specialty": "Internal Medicine",
+          "state": "CA",
+          "total_claims_12m": 850,
+          "denied_claims_12m": 42,
+          "denial_rate": 0.0494,
+          "claim_reversal_rate": 0.03,
+          "average_denial_days": 12,
+          "upcoding_flagged": false,
+          "unbundling_flagged": false,
+          "impossible_billing_flagged": false,
+          "risk_percentile": 45,
+          "risk_level": "LOW",
+          "risk_factors": [],
+          "claim_frequency_change_pct": 5.2,
+          "last_evaluated": "2024-04-10T08:00:00Z",
+          "evaluation_method": "AUTOMATED",
+          "created_at": "2024-01-01T00:00:00Z",
+          "modified_at": "2024-04-10T08:00:00Z"
+        },
+        {
+          "_id": "ObjectId('607f1f77bcf86cd799439002')",
+          "provider_npi": "9876543210",
+          "payer_id": "uuid-aetna-001",
+          "specialty": "Family Practice",
+          "state": "NY",
+          "total_claims_12m": 1250,
+          "denied_claims_12m": 312,
+          "denial_rate": 0.2496,
+          "claim_reversal_rate": 0.08,
+          "average_denial_days": 15,
+          "upcoding_flagged": true,
+          "unbundling_flagged": false,
+          "impossible_billing_flagged": false,
+          "risk_percentile": 0.75,
+          "risk_level": "HIGH",
+          "risk_factors": ["HIGH_DENIAL_RATE", "UPCODING_DETECTED", "FREQUENCY_INCREASE"],
+          "claim_frequency_change_pct": 45.3,
+          "last_evaluated": "2024-04-10T09:00:00Z",
+          "evaluation_method": "AUTOMATED",
+          "created_at": "2024-01-01T00:00:00Z",
+          "modified_at": "2024-04-10T09:00:00Z"
+        },
+        {
+          "_id": "ObjectId('607f1f77bcf86cd799439003')",
+          "provider_npi": "5555555555",
+          "payer_id": "uuid-united-001",
+          "specialty": "Radiology",
+          "state": "TX",
+          "total_claims_12m": 2100,
+          "denied_claims_12m": 350,
+          "denial_rate": 0.1667,
+          "claim_reversal_rate": 0.12,
+          "average_denial_days": 20,
+          "upcoding_flagged": false,
+          "unbundling_flagged": true,
+          "impossible_billing_flagged": true,
+          "risk_percentile": 85,
+          "risk_level": "HIGH",
+          "risk_factors": ["UNBUNDLING_DETECTED", "IMPOSSIBLE_BILLING_FLAGGED", "CLAIM_REVERSAL_RATE_ELEVATED"],
+          "claim_frequency_change_pct": 35.8,
+          "last_evaluated": "2024-04-10T10:00:00Z",
+          "evaluation_method": "AUTOMATED",
+          "created_at": "2024-01-01T00:00:00Z",
+          "modified_at": "2024-04-10T10:00:00Z"
+        }
+      ]
+    }
+  }
+}

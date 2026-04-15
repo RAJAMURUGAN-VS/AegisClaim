@@ -1,0 +1,29 @@
+{
+  "data_load_instructions": {
+    "mongodb_setup": {
+      "step_1": "Connect to MongoDB instance",
+      "step_2": "Create collections with validation schemas",
+      "step_3": "Load sample_documents from claims_history and provider_risk_profile",
+      "step_4": "Create indexes as specified",
+      "step_5": "Run monthly aggregation job to populate provider_risk_profile"
+    },
+    "postgresql_setup": {
+      "step_1": "Run migrations to create tables",
+      "step_2": "Insert sample_records from bundled_cpt_rules, fraud_detection_config, etc.",
+      "step_3": "Create indexes for query performance",
+      "step_4": "Verify foreign key constraints"
+    },
+    "historical_data_migration": {
+      "description": "How to load 12-24 months of historical claims",
+      "source": "Your existing claims system",
+      "target": "MongoDB claims_history collection",
+      "process": [
+        "Extract claims by date range (monthly batches)",
+        "Transform to match claims_history schema",
+        "Load with insert_many() using batch sizes of 10,000",
+        "Create indexes after bulk load",
+        "Run data quality checks"
+      ]
+    }
+  }
+}
