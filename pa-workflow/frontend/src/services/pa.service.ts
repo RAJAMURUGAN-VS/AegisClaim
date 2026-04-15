@@ -14,9 +14,21 @@ export const paService = {
     return response.data
   },
 
+  // Submit PA (alias for createPA with specific endpoint)
+  submitPA: async (data: PASubmissionFormData): Promise<PARequest> => {
+    const response = await api.post<PARequest>('/api/v1/pa/submit', data)
+    return response.data
+  },
+
   // Get PA by ID
   getPAById: async (id: string): Promise<PARequest> => {
     const response = await api.get<PARequest>(`/pa/${id}`)
+    return response.data
+  },
+
+  // Get PA status (specific endpoint for status tracking)
+  getPAStatus: async (id: string): Promise<PARequest> => {
+    const response = await api.get<PARequest>(`/api/v1/pa/${id}`)
     return response.data
   },
 
@@ -70,15 +82,23 @@ export const paService = {
     return response.data
   },
 
-  // Submit decision for PA
+  // Submit decision for PA (for adjudicator)
   submitDecision: async (
     paId: string,
     decisionData: DecisionFormData
   ): Promise<PARequest> => {
     const response = await api.post<PARequest>(
-      `/pa/${paId}/decision`,
+      `/api/v1/pa/${paId}/decision`,
       decisionData
     )
+    return response.data
+  },
+
+  // Submit appeal for PA (for provider)
+  submitAppeal: async (paId: string, reason: string): Promise<PARequest> => {
+    const response = await api.post<PARequest>(`/api/v1/pa/${paId}/appeal`, {
+      reason,
+    })
     return response.data
   },
 
@@ -119,6 +139,14 @@ export const paService = {
       }
     )
     return response.data
+  },
+
+  // Upload multiple documents
+  uploadDocuments: async (paId: string, files: File[]): Promise<void> => {
+    const uploadPromises = files.map((file) =>
+      paService.uploadAttachment(paId, file)
+    )
+    await Promise.all(uploadPromises)
   },
 
   // Get analytics data

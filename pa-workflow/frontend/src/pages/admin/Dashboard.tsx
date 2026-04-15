@@ -5,8 +5,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  TrendingUp,
-  Users,
 } from 'lucide-react'
 
 const StatCard: React.FC<{

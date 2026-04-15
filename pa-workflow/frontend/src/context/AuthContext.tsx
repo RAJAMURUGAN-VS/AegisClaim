@@ -7,7 +7,7 @@ import React, {
   type ReactNode,
 } from 'react'
 import { authService } from '../services/auth'
-import type { User, AuthToken } from '../types/pa.types'
+import type { User } from '../types/pa.types'
 
 interface AuthContextType {
   user: User | null

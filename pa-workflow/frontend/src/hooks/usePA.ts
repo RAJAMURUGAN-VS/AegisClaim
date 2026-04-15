@@ -15,6 +15,7 @@ export const paKeys = {
   list: (filters: PAFilter | undefined) => [...paKeys.lists(), filters] as const,
   details: () => [...paKeys.all, 'detail'] as const,
   detail: (id: string) => [...paKeys.details(), id] as const,
+  status: (id: string) => [...paKeys.detail(id), 'status'] as const,
   queue: () => [...paKeys.all, 'queue'] as const,
   provider: (providerId: string) => [...paKeys.all, 'provider', providerId] as const,
 }
@@ -57,7 +58,40 @@ export const useProviderPARequests = (
   })
 }
 
-// Hook to create PA
+// Hook to get PA status with polling
+export const usePAStatus = (paId: string | undefined) => {
+  return useQuery<PARequest, Error>({
+    queryKey: paKeys.status(paId || ''),
+    queryFn: () => paService.getPAStatus(paId!),
+    enabled: !!paId,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      // Poll every 10 seconds if status is SUBMITTED, IN_REVIEW, or AGENT_PROCESSING
+      if (data && (data.status === 'SUBMITTED' || data.status === 'IN_REVIEW' || data.status === 'AGENT_PROCESSING')) {
+        return 10000 // 10 seconds
+      }
+      return false // Stop polling for other statuses
+    },
+  })
+}
+
+// Hook to submit PA (mutation)
+export const useSubmitPA = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation<PARequest, Error, PASubmissionFormData>({
+    mutationFn: (data) => paService.submitPA(data),
+    onSuccess: (result) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: paKeys.lists() })
+      // Set the new PA data in cache
+      queryClient.setQueryData(paKeys.detail(result.id), result)
+      queryClient.setQueryData(paKeys.status(result.id), result)
+    },
+  })
+}
+
+// Hook to create PA (legacy)
 export const useCreatePA = () => {
   const queryClient = useQueryClient()
 
@@ -69,15 +103,29 @@ export const useCreatePA = () => {
   })
 }
 
-// Hook to submit decision
+// Hook to submit decision (for adjudicator)
 export const useSubmitDecision = () => {
   const queryClient = useQueryClient()
 
   return useMutation<PARequest, Error, { paId: string; decisionData: DecisionFormData }>({
     mutationFn: ({ paId, decisionData }) => paService.submitDecision(paId, decisionData),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: paKeys.detail(variables.paId) })
+      queryClient.invalidateQueries({ queryKey: paKeys.status(variables.paId) })
       queryClient.invalidateQueries({ queryKey: paKeys.queue() })
+    },
+  })
+}
+
+// Hook to submit appeal (for provider)
+export const useSubmitAppeal = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation<PARequest, Error, { paId: string; reason: string }>({
+    mutationFn: ({ paId, reason }) => paService.submitAppeal(paId, reason),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: paKeys.detail(variables.paId) })
+      queryClient.invalidateQueries({ queryKey: paKeys.status(variables.paId) })
     },
   })
 }
@@ -88,9 +136,22 @@ export const useCancelPA = () => {
 
   return useMutation<PARequest, Error, { id: string; reason: string }>({
     mutationFn: ({ id, reason }) => paService.cancelPA(id, reason),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: paKeys.detail(variables.id) })
       queryClient.invalidateQueries({ queryKey: paKeys.lists() })
+    },
+  })
+}
+
+// Hook to upload documents
+export const useUploadDocuments = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, { paId: string; files: File[] }>({
+    mutationFn: ({ paId, files }) => paService.uploadDocuments(paId, files),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: paKeys.detail(variables.paId) })
+      queryClient.invalidateQueries({ queryKey: paKeys.status(variables.paId) })
     },
   })
 }
