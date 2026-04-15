@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorDatabase 
 
 from core.exceptions import FraudDetectionException
 from models.mongo_models import AnomalyFlag
