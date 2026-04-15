@@ -6,6 +6,9 @@ import type {
   PASubmissionFormData,
   DecisionFormData,
   PaginatedResponse,
+  Payer,
+  Plan,
+  DocumentRequirements,
 } from '../types/pa.types'
 
 // Query keys
@@ -18,6 +21,22 @@ export const paKeys = {
   status: (id: string) => [...paKeys.detail(id), 'status'] as const,
   queue: () => [...paKeys.all, 'queue'] as const,
   provider: (providerId: string) => [...paKeys.all, 'provider', providerId] as const,
+}
+
+// Payer and Plan query keys
+export const payerKeys = {
+  all: ['payers'] as const,
+  list: () => [...payerKeys.all, 'list'] as const,
+}
+
+export const planKeys = {
+  all: ['plans'] as const,
+  byPayer: (payerId: string) => [...planKeys.all, 'payer', payerId] as const,
+}
+
+export const documentKeys = {
+  all: ['documents'] as const,
+  requirements: (treatmentType: string) => [...documentKeys.all, 'requirements', treatmentType] as const,
 }
 
 // Hook to fetch PA by ID
@@ -153,5 +172,31 @@ export const useUploadDocuments = () => {
       queryClient.invalidateQueries({ queryKey: paKeys.detail(variables.paId) })
       queryClient.invalidateQueries({ queryKey: paKeys.status(variables.paId) })
     },
+  })
+}
+
+// Hook to fetch all payers
+export const usePayers = () => {
+  return useQuery<Payer[], Error>({
+    queryKey: payerKeys.list(),
+    queryFn: () => paService.getPayers(),
+  })
+}
+
+// Hook to fetch plans by payer ID
+export const usePlansByPayer = (payerId: string | undefined) => {
+  return useQuery<Plan[], Error>({
+    queryKey: planKeys.byPayer(payerId || ''),
+    queryFn: () => paService.getPlansByPayer(payerId!),
+    enabled: !!payerId,
+  })
+}
+
+// Hook to fetch document requirements
+export const useDocumentRequirements = (treatmentType: string | undefined) => {
+  return useQuery<DocumentRequirements, Error>({
+    queryKey: documentKeys.requirements(treatmentType || ''),
+    queryFn: () => paService.getDocumentRequirements(treatmentType!),
+    enabled: !!treatmentType,
   })
 }

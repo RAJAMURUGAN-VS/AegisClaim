@@ -266,6 +266,59 @@ export interface PASubmissionFormData {
   requestedDate: string
 }
 
+// New Provider Submission Form Data (for PASubmissionForm.tsx)
+export interface ProviderPASubmissionFormData {
+  // Step 1: Patient & Insurance Details
+  patientMemberId: string
+  payerId: string
+  planId: string
+  providerNpi: string
+  dateOfService: string
+
+  // Step 2: Clinical Information
+  icd10Codes: string[]
+  cptCodes: string[]
+  priorTreatmentHistory?: string
+  medicationName?: string
+  medicationDosage?: string
+
+  // Step 3: Documents
+  documents: File[]
+}
+
+// Payer and Plan Types
+export interface Payer {
+  id: string
+  name: string
+  code: string
+  isActive: boolean
+}
+
+export interface Plan {
+  id: string
+  payerId: string
+  name: string
+  planCode: string
+  planType: string
+  isActive: boolean
+}
+
+// Document Upload Types
+export interface DocumentRequirements {
+  required: string[]
+  optional: string[]
+}
+
+export interface FileUpload {
+  id: string
+  file: File
+  name: string
+  size: number
+  type: string
+  status: 'pending' | 'uploading' | 'success' | 'error'
+  errorMessage?: string
+}
+
 export interface DecisionFormData {
   decision: 'APPROVED' | 'DENIED' | 'PENDED'
   reason: string

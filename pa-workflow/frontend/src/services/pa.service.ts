@@ -7,6 +7,39 @@ import type {
   DecisionFormData,
 } from '../types/pa.types'
 
+// Payer Types
+export interface Payer {
+  id: string
+  name: string
+  code: string
+  isActive: boolean
+}
+
+export interface Plan {
+  id: string
+  payerId: string
+  name: string
+  planCode: string
+  planType: string
+  isActive: boolean
+}
+
+// Document Upload Types
+export interface DocumentRequirements {
+  required: string[]
+  optional: string[]
+}
+
+export interface FileUpload {
+  id: string
+  file: File
+  name: string
+  size: number
+  type: string
+  status: 'pending' | 'uploading' | 'success' | 'error'
+  errorMessage?: string
+}
+
 export const paService = {
   // Create new PA request
   createPA: async (data: PASubmissionFormData): Promise<PARequest> => {
@@ -162,6 +195,28 @@ export const paService = {
         date_from: dateFrom,
         date_to: dateTo,
       },
+    })
+    return response.data
+  },
+
+  // Get all payers
+  getPayers: async (): Promise<Payer[]> => {
+    const response = await api.get<Payer[]>('/api/v1/payers')
+    return response.data
+  },
+
+  // Get plans by payer ID
+  getPlansByPayer: async (payerId: string): Promise<Plan[]> => {
+    const response = await api.get<Plan[]>('/api/v1/plans', {
+      params: { payer_id: payerId },
+    })
+    return response.data
+  },
+
+  // Get document requirements based on treatment type
+  getDocumentRequirements: async (treatmentType: string): Promise<DocumentRequirements> => {
+    const response = await api.get<DocumentRequirements>('/api/v1/documents/requirements', {
+      params: { treatment_type: treatmentType },
     })
     return response.data
   },
