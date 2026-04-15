@@ -1,0 +1,169 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>AegisClaim PA Workflow Examples</title>
+<style>
+    body { font-family: Calibri, sans-serif; font-size: 11pt; }
+    h1 { color: #2E74B5; font-size: 20pt; }
+    h2 { color: #2E74B5; font-size: 16pt; border-bottom: 1px solid #BFBFBF; padding-bottom: 3px; }
+    h3 { color: #365F91; font-size: 12pt; }
+    p { margin: 0 0 8pt 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #BFBFBF; padding: 8px; text-align: left; vertical-align: top; }
+    th { background-color: #F2F2F2; }
+    pre { background-color: #F5F5F5; padding: 10px; border: 1px solid #CCC; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', Courier, monospace; }
+    .code-block { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<h1>AegisClaim: AI-Powered Prior Authorization Workflow</h1>
+<p><strong>Document Date:</strong> April 14, 2026</p>
+<p>This document provides a detailed overview of the PA workflow, demonstrating how different input requests are processed by the multi-agent system. Each scenario includes an example API input and the resulting final state from the orchestrator.</p>
+
+<h2>Core Workflow</h2>
+<p>The process begins when a provider submits a PA request. The LangGraph orchestrator guides the request through a series of agents, each performing a specific evaluation. The final decision is based on a weighted score and a set of business rules.</p>
+<ol>
+    <li><strong>Policy Selector:</strong> Checks if PA is required and if initial documents are present.</li>
+    <li><strong>Agent A (Document Processor):</strong> Performs OCR on documents, extracts medical codes, and creates a structured FHIR bundle.</li>
+    <li><strong>Agent B (Policy Compliance):</strong> Evaluates the request against payer policies from the database.</li>
+    <li><strong>Agent C (Fraud & Anomaly):</strong> Analyzes historical data to assess fraud risk.</li>
+    <li><strong>Decision Engine:</strong> Calculates a final score and makes a routing decision (Approve, Deny, or Review).</li>
+</ol>
+
+<hr style="height:1px;border:none;color:#BFBFBF;background-color:#BFBFBF;" />
+
+<h2>Scenario 1: Clean Auto-Approval</h2>
+<p>A standard, well-documented request from a trusted provider with a clear diagnosis-treatment match and no risk flags.</p>
+
+<h3>Input (API Request Body)</h3>
+<div class="code-block">
+<pre>
+{
+  "patient_member_id": "MEMBER-98765",
+  "payer_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+  "plan_id": "plan-abc-123",
+  "provider_npi": "1234567890",
+  "cpt_codes": ["99214"],
+  "billed_amount": 250.00,
+  "patient_data": { "age": 45, "gender": "Male" },
+  "document_paths": ["clinical_notes.pdf", "prescription.pdf"]
+}
+</pre>
+</div>
+
+<h3>Workflow Execution & Agent Outputs</h3>
+<table>
+    <tr><th>Step</th><th>Agent</th><th>Action & Result</th></tr>
+    <tr><td>1</td><td>Policy Selector</td><td>PA is required. All necessary documents ('clinical_notes', 'prescription') are present.</td></tr>
+    <tr><td>2</td><td>Agent A</td><td>OCR confidence is high (98%). Extracts ICD-10 'M54.5' (Low back pain) and CPT '99214'. FHIR bundle created successfully. <strong>Flagged for review: False</strong>.</td></tr>
+    <tr><td>3</td><td>Agent B</td><td>Finds a strong policy match for 'M54.5' and '99214'. No step therapy required. <strong>Policy Score: 95.0</strong>.</td></tr>
+    <tr><td>4</td><td>Agent C</td><td>Provider has low historical claim denial rate. No unusual billing patterns found for this patient. <strong>Fraud Score: 90.0</strong>. <strong>Risk Flag: LOW</strong>.</td></tr>
+</table>
+
+<h3>Final Output (Orchestrator Result)</h3>
+<div class="code-block">
+<pre>
+{
+  "pa_id": "...",
+  "status": "DECIDED",
+  "final_score": 92.75,
+  "decision": "AUTO_APPROVE",
+  "agent_b_output": { "policy_score": 95.0, ... },
+  "agent_c_output": { "fraud_score": 90.0, "risk_flag": "LOW", ... }
+}
+</pre>
+</div>
+
+<hr style="height:1px;border:none;color:#BFBFBF;background-color:#BFBFBF;" />
+
+<h2>Scenario 2: Auto-Denial (Low Score)</h2>
+<p>A request with poor-quality or insufficient documentation, leading to low confidence scores from the agents.</p>
+
+<h3>Input (API Request Body)</h3>
+<div class="code-block">
+<pre>
+{
+  "patient_member_id": "MEMBER-11223",
+  "payer_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+  "plan_id": "plan-abc-123",
+  "provider_npi": "1112223334",
+  "cpt_codes": ["27447"],
+  "billed_amount": 15000.00,
+  "patient_data": { "age": 68, "gender": "Female" },
+  "document_paths": ["illegible_scan.pdf"]
+}
+</pre>
+</div>
+
+<h3>Workflow Execution & Agent Outputs</h3>
+<table>
+    <tr><th>Step</th><th>Agent</th><th>Action & Result</th></tr>
+    <tr><td>1</td><td>Policy Selector</td><td>PA is required. Missing 'prescription' document.</td></tr>
+    <tr><td>2</td><td>Agent A</td><td>After retry period, document is not uploaded. Proceeds with available docs. OCR confidence is very low (45%). Fails to extract a clear diagnosis. <strong>Flagged for review: True</strong>.</td></tr>
+    <tr><td>3</td><td>Agent B</td><td>Cannot find a diagnosis to match the requested procedure (CPT '27447' - Total knee arthroplasty). <strong>Policy Score: 20.0</strong>. <strong>Compliance Flag: DIAGNOSIS_TREATMENT_MISMATCH</strong>.</td></tr>
+    <tr><td>4</td><td>Agent C</td><td>Provider has a moderate denial rate. <strong>Fraud Score: 65.0</strong>. <strong>Risk Flag: MEDIUM</strong>.</td></tr>
+</table>
+
+<h3>Final Output (Orchestrator Result)</h3>
+<div class="code-block">
+<pre>
+{
+  "pa_id": "...",
+  "status": "DECIDED",
+  "final_score": 39.25,
+  "decision": "AUTO_DENY",
+  "agent_b_output": { "policy_score": 20.0, "compliance_flags": ["DIAGNOSIS_TREATMENT_MISMATCH"], ... },
+  "agent_c_output": { "fraud_score": 65.0, "risk_flag": "MEDIUM", ... },
+  "error": "INCOMPLETE_SUBMISSION"
+}
+</pre>
+</div>
+
+<hr style="height:1px;border:none;color:#BFBFBF;background-color:#BFBFBF;" />
+
+<h2>Scenario 3: Human Review (High Fraud Risk)</h2>
+<p>A request that appears valid clinically but is flagged for high fraud risk due to historical billing patterns.</p>
+
+<h3>Input (API Request Body)</h3>
+<div class="code-block">
+<pre>
+{
+  "patient_member_id": "MEMBER-44556",
+  "payer_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+  "plan_id": "plan-abc-123",
+  "provider_npi": "9876543210",
+  "cpt_codes": ["77067"],
+  "billed_amount": 450.00,
+  "patient_data": { "age": 52, "gender": "Female" },
+  "document_paths": ["clinical_notes.pdf", "prescription.pdf"]
+}
+</pre>
+</div>
+
+<h3>Workflow Execution & Agent Outputs</h3>
+<table>
+    <tr><th>Step</th><th>Agent</th><th>Action & Result</th></tr>
+    <tr><td>1</td><td>Policy Selector</td><td>PA required, documents present.</td></tr>
+    <tr><td>2</td><td>Agent A</td><td>OCR successful (99%). Extracts codes correctly.</td></tr>
+    <tr><td>3</td><td>Agent B</td><td>Strong policy match. <strong>Policy Score: 92.0</strong>.</td></tr>
+    <tr><td>4</td><td>Agent C</td><td>Analysis of historical data reveals this provider frequently bills this CPT code with an unrelated diagnosis for this patient demographic. <strong>Fraud Score: 30.0</strong>. <strong>Risk Flag: HIGH</strong>.</td></tr>
+</table>
+
+<h3>Final Output (Orchestrator Result)</h3>
+<div class="code-block">
+<pre>
+{
+  "pa_id": "...",
+  "status": "DECIDED",
+  "final_score": 71.3,
+  "decision": "HUMAN_REVIEW",
+  "agent_b_output": { "policy_score": 92.0, ... },
+  "agent_c_output": { "fraud_score": 30.0, "risk_flag": "HIGH", ... }
+}
+</pre>
+</div>
+<p><strong>Note:</strong> Even though the final score is above the review threshold, the 'HIGH' risk flag from Agent C triggers an immediate override, routing the case for manual inspection as per the decision logic.</p>
+
+</body>
+</html>
