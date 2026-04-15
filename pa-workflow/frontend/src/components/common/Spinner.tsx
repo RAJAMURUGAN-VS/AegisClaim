@@ -1,22 +1,33 @@
 import React from 'react'
 
-interface SpinnerProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+export interface SpinnerProps {
+  size?: 'sm' | 'md' | 'lg'
+  color?: 'primary' | 'secondary' | 'white' | 'gray'
   className?: string
 }
 
-export const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '' }) => {
+export const Spinner: React.FC<SpinnerProps> = ({
+  size = 'md',
+  color = 'primary',
+  className = '',
+}) => {
   const sizes = {
     sm: 'w-4 h-4',
     md: 'w-8 h-8',
     lg: 'w-12 h-12',
-    xl: 'w-16 h-16',
+  }
+
+  const colors = {
+    primary: 'text-primary',
+    secondary: 'text-secondary',
+    white: 'text-white',
+    gray: 'text-gray-500',
   }
 
   return (
     <div className={`${className}`}>
       <svg
-        className={`animate-spin ${sizes[size]} text-primary`}
+        className={`animate-spin ${sizes[size]} ${colors[color]}`}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -35,18 +46,6 @@ export const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '' })
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
         />
       </svg>
-    </div>
-  )
-}
-
-// Full page loading spinner
-export const PageLoader: React.FC = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <Spinner size="xl" />
-        <p className="mt-4 text-gray-600 font-medium">Loading...</p>
-      </div>
     </div>
   )
 }

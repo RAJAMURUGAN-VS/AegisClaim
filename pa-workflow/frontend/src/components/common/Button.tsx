@@ -1,21 +1,19 @@
 import React from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, type LucideIcon } from 'lucide-react'
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'outline'
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
-  isLoading?: boolean
-  leftIcon?: React.ReactNode
-  rightIcon?: React.ReactNode
+  loading?: boolean
+  icon?: LucideIcon
 }
 
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
   size = 'md',
-  isLoading = false,
-  leftIcon,
-  rightIcon,
+  loading = false,
+  icon: Icon,
   className = '',
   disabled,
   ...props
@@ -26,10 +24,8 @@ export const Button: React.FC<ButtonProps> = ({
   const variants = {
     primary: 'bg-primary text-white hover:bg-primary-light focus:ring-primary',
     secondary: 'bg-secondary text-white hover:bg-secondary-light focus:ring-secondary',
-    success: 'bg-success text-white hover:bg-success-light focus:ring-success',
-    warning: 'bg-warning text-white hover:bg-warning-light focus:ring-warning',
     danger: 'bg-danger text-white hover:bg-danger-light focus:ring-danger',
-    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary',
+    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-400',
   }
 
   const sizes = {
@@ -41,13 +37,12 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={disabled || isLoading}
+      disabled={disabled || loading}
       {...props}
     >
-      {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-      {!isLoading && leftIcon && <span className="mr-2">{leftIcon}</span>}
+      {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+      {!loading && Icon && <Icon className="w-4 h-4 mr-2" />}
       {children}
-      {!isLoading && rightIcon && <span className="ml-2">{rightIcon}</span>}
     </button>
   )
 }

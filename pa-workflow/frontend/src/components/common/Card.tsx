@@ -1,13 +1,11 @@
 import React from 'react'
 
-interface CardProps {
+export interface CardProps {
   children: React.ReactNode
   className?: string
   title?: string
   subtitle?: string
-  headerAction?: React.ReactNode
-  footer?: React.ReactNode
-  noPadding?: boolean
+  actions?: React.ReactNode
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -15,14 +13,12 @@ export const Card: React.FC<CardProps> = ({
   className = '',
   title,
   subtitle,
-  headerAction,
-  footer,
-  noPadding = false,
+  actions,
 }) => {
   return (
     <div className={`bg-white rounded-lg shadow-card overflow-hidden ${className}`}>
-      {(title || subtitle || headerAction) && (
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-start">
+      {(title || subtitle || actions) && (
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
           <div>
             {title && (
               <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -31,15 +27,11 @@ export const Card: React.FC<CardProps> = ({
               <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
             )}
           </div>
-          {headerAction && <div className="ml-4">{headerAction}</div>}
+          {actions && <div className="ml-4">{actions}</div>}
         </div>
       )}
 
-      <div className={noPadding ? '' : 'p-6'}>{children}</div>
-
-      {footer && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">{footer}</div>
-      )}
+      <div className="p-6">{children}</div>
     </div>
   )
 }

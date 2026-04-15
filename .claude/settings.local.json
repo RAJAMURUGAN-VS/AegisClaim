@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(cd C:/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow/frontend)"
+    ]
+  }
+}

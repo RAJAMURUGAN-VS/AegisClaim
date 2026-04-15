@@ -8,6 +8,7 @@ import {
   BarChart3,
   LogOut,
   Shield,
+  CheckCircle,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -19,16 +20,17 @@ export const Sidebar: React.FC = () => {
       case 'PROVIDER':
         return [
           { path: '/provider/submit', label: 'Submit PA', icon: FileText },
-          { path: '/provider/status', label: 'Track Status', icon: ClipboardList },
+          { path: '/provider/status', label: 'My Requests', icon: ClipboardList },
         ]
       case 'ADJUDICATOR':
         return [
           { path: '/adjudicator/queue', label: 'Review Queue', icon: List },
+          { path: '/adjudicator/completed', label: 'Completed', icon: CheckCircle },
         ]
       case 'ADMIN':
         return [
           { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { path: '/admin/pa-list', label: 'All PA Requests', icon: List },
+          { path: '/admin/pa-list', label: 'All PAs', icon: List },
           { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
         ]
       default:
@@ -39,11 +41,14 @@ export const Sidebar: React.FC = () => {
   const navItems = getNavItems()
 
   return (
-    <aside className="w-64 bg-primary text-white flex flex-col">
+    <aside className="w-64 bg-primary text-white flex flex-col fixed h-full">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-primary-light">
         <Shield className="w-8 h-8 mr-3 text-secondary" />
-        <span className="text-lg font-bold">PA Workflow</span>
+        <div>
+          <span className="text-lg font-bold">AegisClaim</span>
+          <p className="text-xs text-gray-400">PA Workflow</p>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -71,9 +76,9 @@ export const Sidebar: React.FC = () => {
 
       {/* User Info & Logout */}
       <div className="p-4 border-t border-primary-light">
-        <div className="mb-4">
+        <div className="mb-4 px-4">
           <p className="text-sm font-medium text-white">{user?.name}</p>
-          <p className="text-xs text-gray-400">{user?.role}</p>
+          <p className="text-xs text-gray-400 capitalize">{user?.role?.toLowerCase()}</p>
         </div>
         <button
           onClick={logout}
