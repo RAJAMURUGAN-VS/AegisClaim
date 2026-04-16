@@ -1,0 +1,113 @@
+[
+  {
+    "payer_id": "HDFC",
+    "network_hospitals": [
+      {
+        "name": "Apollo Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "Fortis Hospital",
+        "location": "Mumbai"
+      },
+      {
+        "name": "Care Hospital",
+        "location": "Hyderabad"
+      },
+      {
+        "name": "Manipal Hospital",
+        "location": "Bangalore"
+      },
+      {
+        "name": "Global Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "Columbia Asia Hospital",
+        "location": "Bangalore"
+      },
+      {
+        "name": "Max Hospital",
+        "location": "Delhi"
+      },
+      {
+        "name": "Narayana Health",
+        "location": "Bangalore"
+      }
+    ]
+  },
+  {
+    "payer_id": "ICICI",
+    "network_hospitals": [
+      {
+        "name": "Apollo Hospital",
+        "location": "Delhi"
+      },
+      {
+        "name": "Fortis Hospital",
+        "location": "Delhi"
+      },
+      {
+        "name": "Care Hospital",
+        "location": "Hyderabad"
+      },
+      {
+        "name": "Manipal Hospital",
+        "location": "Bangalore"
+      },
+      {
+        "name": "Yashoda Hospital",
+        "location": "Hyderabad"
+      },
+      {
+        "name": "KIMS Hospital",
+        "location": "Hyderabad"
+      },
+      {
+        "name": "Global Hospital",
+        "location": "Mumbai"
+      },
+      {
+        "name": "Max Hospital",
+        "location": "Delhi"
+      }
+    ]
+  },
+  {
+    "payer_id": "STAR",
+    "network_hospitals": [
+      {
+        "name": "Apollo Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "Fortis Hospital",
+        "location": "Mumbai"
+      },
+      {
+        "name": "City Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "XYZ Clinic",
+        "location": "Delhi"
+      },
+      {
+        "name": "MIOT Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "SRM Hospital",
+        "location": "Chennai"
+      },
+      {
+        "name": "Rainbow Hospital",
+        "location": "Hyderabad"
+      },
+      {
+        "name": "Aster Hospital",
+        "location": "Bangalore"
+      }
+    ]
+  }
+]
