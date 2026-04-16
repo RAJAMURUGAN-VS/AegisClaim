@@ -7,7 +7,11 @@
       "Bash(npx tsc *)",
       "Bash(node *)",
       "Bash(python3 *)",
-      "Bash(cd /c/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow/frontend)"
+      "Bash(cd /c/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow/frontend)",
+      "Bash(cd /c/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow)",
+      "Bash(python -c \"from api.main import app; print\\('Backend imports successfully'\\)\")",
+      "Bash(python -c \"from api.routes.auth_routes import router; print\\('Auth routes import successfully'\\)\")",
+      "Bash(python *)"
     ]
   }
 }

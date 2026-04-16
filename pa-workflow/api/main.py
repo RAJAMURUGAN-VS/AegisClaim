@@ -6,7 +6,11 @@ from core.database import connect_db, disconnect_db, connect_mongo, disconnect_m
 from core.redis_client import connect_redis, disconnect_redis
 from models.mongo_models import create_indexes
 from core.config import settings
-from .routes import pa_routes #, webhook_routes
+from .routes import auth_routes
+try:
+    from .routes import pa_routes
+except ImportError:
+    pa_routes = None  # pa_routes has dependencies that may not be fully configured
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,5 +57,7 @@ async def read_root():
     return {"message": "Welcome to the AI-Powered Prior Authorization API"}
 
 # Mount routers here
-app.include_router(pa_routes.router, prefix="/api/v1", tags=["Prior Authorization"])
+if pa_routes:
+    app.include_router(pa_routes.router, prefix="/api/v1", tags=["Prior Authorization"])
+app.include_router(auth_routes.router, prefix="/api/v1", tags=["Authentication"])
 # app.include_router(webhook_routes.router, prefix="/api/v1/webhooks", tags=["Webhooks"])

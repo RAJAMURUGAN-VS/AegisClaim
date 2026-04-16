@@ -134,11 +134,21 @@ const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Demo Credentials:</p>
-            <p className="mt-1">
-              <code className="bg-gray-100 px-2 py-1 rounded">provider@example.com</code> /{' '}
-              <code className="bg-gray-100 px-2 py-1 rounded">password</code>
-            </p>
+            <p className="font-medium mb-2">Demo Credentials (all use "password"):</p>
+            <div className="space-y-1">
+              <p>
+                <code className="bg-gray-100 px-2 py-1 rounded">provider@example.com</code> — Provider
+              </p>
+              <p>
+                <code className="bg-gray-100 px-2 py-1 rounded">adjudicator@example.com</code> — Adjudicator
+              </p>
+              <p>
+                <code className="bg-gray-100 px-2 py-1 rounded">admin@example.com</code> — Admin
+              </p>
+              <p>
+                <code className="bg-gray-100 px-2 py-1 rounded">director@example.com</code> — Medical Director
+              </p>
+            </div>
           </div>
         </div>
 
