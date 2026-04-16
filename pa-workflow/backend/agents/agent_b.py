@@ -120,7 +120,8 @@ def agent_b_policy_check(claim):
 
     if hospital_status == "NON-NETWORK":
         reasons.append("Hospital is not in insurer network (reimbursement case)")
-        decision = "REVIEW"
+        if decision != "REJECTED":
+            decision = "REVIEW"
 
     elif hospital_status == "UNKNOWN":
         return {"decision": "REJECTED", "reason": "Unknown hospital"}
@@ -143,7 +144,8 @@ def agent_b_policy_check(claim):
 
     if max_cost and cost > max_cost:
         reasons.append("Cost exceeds limit")
-        decision = "REVIEW"
+        if decision != "REJECTED":
+            decision = "REVIEW"
 
     # ---------------- 8. DOCUMENT CHECK ---------------- #
     required_docs = plan["documents_required"]
@@ -167,7 +169,8 @@ def agent_b_policy_check(claim):
                 break
         if not doc_present:
             reasons.append(f"Missing document: {doc}")
-            decision = "REVIEW"
+            if decision != "REJECTED":
+                decision = "REVIEW"
 
     # ---------------- 9. CLAIM HISTORY CHECK ---------------- #
     history = claim["history"]
