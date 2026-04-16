@@ -136,7 +136,7 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Us
     if payload is None:
         raise credentials_exception
 
-    user_id = payload.get("sub")
+    user_id = payload.get("user_id")
     if user_id is None:
         raise credentials_exception
 
@@ -179,7 +179,7 @@ async def login(credentials: LoginRequest):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["id"], "email": user["email"], "role": user["role"]},
+        data={"user_id": user["id"], "email": user["email"], "roles": [user["role"]]},
         expires_delta=access_token_expires,
     )
 
@@ -229,7 +229,7 @@ async def refresh_token(current_user: User = Depends(get_current_user_from_token
     """
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": current_user.id, "email": current_user.email, "role": current_user.role},
+        data={"user_id": current_user.id, "email": current_user.email, "roles": [current_user.role]},
         expires_delta=access_token_expires,
     )
 

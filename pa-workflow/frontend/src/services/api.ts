@@ -35,11 +35,15 @@ api.interceptors.response.use(
     return response
   },
   (error: AxiosError) => {
-    const { response } = error
+    const { response, config } = error
 
     if (response) {
       switch (response.status) {
         case 401:
+          // Skip redirect for login endpoint - let the component handle the error
+          if (config?.url?.endsWith('/auth/login')) {
+            break
+          }
           // Unauthorized - clear token and redirect to login
           localStorage.removeItem('access_token')
           localStorage.removeItem('user')
