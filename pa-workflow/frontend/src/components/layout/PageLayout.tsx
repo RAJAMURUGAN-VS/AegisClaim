@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 
@@ -8,8 +8,11 @@ export interface PageLayoutProps {
 }
 
 export const PageLayout: React.FC<PageLayoutProps> = ({ children, title }) => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+
   // Update document title if provided
-  React.useEffect(() => {
+  useEffect(() => {
     if (title) {
       document.title = `${title} | AegisClaim`
     } else {
@@ -17,13 +20,42 @@ export const PageLayout: React.FC<PageLayoutProps> = ({ children, title }) => {
     }
   }, [title])
 
+  // Handle responsive sidebar on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        // Auto collapse on tablet/mobile
+        setIsSidebarCollapsed(true)
+      }
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const sidebarWidth = isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+
   return (
-    <div className="min-h-screen flex">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-64">
-        <Header />
-        <main className="flex-1 bg-background p-6 overflow-auto">
-          {children}
+    <div className="min-h-screen bg-neutral-50">
+      {/* Sidebar */}
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-200 ${sidebarWidth}`}>
+        <Header 
+          onMenuToggle={() => setIsMobileSidebarOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
+        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+          <div className="max-w-7xl mx-auto animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>
