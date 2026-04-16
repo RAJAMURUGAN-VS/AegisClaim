@@ -84,3 +84,77 @@ export const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }
+
+// PA ID formatter - PA-2026-XXXXXX
+export const formatPAId = (id: string): string => {
+  if (!id) return 'N/A'
+  // If already formatted, return as is
+  if (id.startsWith('PA-')) return id
+  // Extract last 6 characters or pad with zeros
+  const padded = id.slice(-6).padStart(6, '0')
+  const year = new Date().getFullYear()
+  return `PA-${year}-${padded}`
+}
+
+// Score formatter with color class
+export const formatScore = (score: number): { value: string; colorClass: string } => {
+  if (score === undefined || score === null) {
+    return { value: 'N/A', colorClass: 'text-gray-500' }
+  }
+  const formatted = score.toFixed(1)
+  let colorClass = 'text-gray-900'
+
+  if (score >= 85) {
+    colorClass = 'text-green-600'
+  } else if (score >= 75) {
+    colorClass = 'text-orange-600'
+  } else if (score >= 60) {
+    colorClass = 'text-orange-700'
+  } else {
+    colorClass = 'text-red-600'
+  }
+
+  return { value: formatted, colorClass }
+}
+
+// Processing time formatter - ms to "1m 23s"
+export const formatProcessingTime = (ms: number): string => {
+  if (ms === undefined || ms === null) return 'N/A'
+
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`
+  } else {
+    return `${seconds}s`
+  }
+}
+
+// Status color getter
+export const getStatusColour = (status: string): string => {
+  const colors: Record<string, string> = {
+    PENDING: 'text-yellow-600 bg-yellow-100 border-yellow-200',
+    APPROVED: 'text-green-600 bg-green-100 border-green-200',
+    DENIED: 'text-red-600 bg-red-100 border-red-200',
+    REVIEW: 'text-blue-600 bg-blue-100 border-blue-200',
+    PROCESSING: 'text-purple-600 bg-purple-100 border-purple-200',
+    AUTO_APPROVE: 'text-green-600 bg-green-100 border-green-200',
+    AUTO_DENY: 'text-red-600 bg-red-100 border-red-200',
+    HUMAN_REVIEW: 'text-orange-600 bg-orange-100 border-orange-200',
+  }
+  return colors[status?.toUpperCase()] || 'text-gray-600 bg-gray-100 border-gray-200'
+}
+
+// Risk color getter
+export const getRiskColour = (risk: string): string => {
+  const colors: Record<string, string> = {
+    LOW: 'text-green-600 bg-green-100 border-green-200',
+    MEDIUM: 'text-orange-600 bg-orange-100 border-orange-200',
+    HIGH: 'text-red-600 bg-red-100 border-red-200 animate-pulse',
+  }
+  return colors[risk?.toUpperCase()] || 'text-gray-600 bg-gray-100 border-gray-200'
+}

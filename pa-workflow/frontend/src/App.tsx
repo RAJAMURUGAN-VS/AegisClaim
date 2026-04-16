@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { DateRangeProvider } from './hooks'
 
 // Auth Pages
 import Login from './pages/auth/Login'
@@ -87,9 +88,11 @@ function App() {
 
           {/* Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-            <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="/admin/pa-list" element={<PAList />} />
-            <Route path="/admin/analytics" element={<Analytics />} />
+            <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+              <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route path="/admin/pa-list" element={<PAList />} />
+              <Route path="/admin/analytics" element={<Analytics />} />
+            </Route>
           </Route>
 
           {/* Default redirect */}
