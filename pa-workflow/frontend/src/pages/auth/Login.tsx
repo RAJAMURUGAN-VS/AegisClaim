@@ -61,6 +61,7 @@ const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password)
+      // Get user from localStorage after successful login
       const storedUser = localStorage.getItem('user')
       if (storedUser) {
         const user = JSON.parse(storedUser)
@@ -74,14 +75,19 @@ const Login: React.FC = () => {
           case 'ADMIN':
             navigate('/admin/dashboard')
             break
+          case 'MEDICAL_DIRECTOR':
+            navigate('/adjudicator/queue')
+            break
           default:
             navigate('/login')
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Display specific error message from backend if available
+      const errorMessage = err?.response?.data?.detail || 'Invalid email or password. Please try again.'
       setError('root', {
         type: 'manual',
-        message: 'Invalid email or password. Please try again.',
+        message: errorMessage,
       })
     }
   }

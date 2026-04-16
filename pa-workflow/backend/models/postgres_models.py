@@ -129,3 +129,39 @@ def prevent_audit_log_updates(mapper, connection, target):
 @event.listens_for(AuditLog, 'before_delete', propagate=True)
 def prevent_audit_log_deletes(mapper, connection, target):
     raise InvalidRequestError("Deletes from audit_log are not permitted.")
+
+
+class BundledCPTRules(Base):
+    """Rules for bundled CPT code combinations."""
+    __tablename__ = "bundled_cpt_rules"
+
+    rule_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    payer_id = Column(UUID(as_uuid=True), ForeignKey("payer_master.payer_id"), nullable=True)
+    primary_cpt = Column(String(16), nullable=False, index=True)
+    secondary_cpt = Column(String(16), nullable=False, index=True)
+    rule_description = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+
+
+class FraudDetectionConfig(Base):
+    """Configurable fraud detection rules per payer."""
+    __tablename__ = "fraud_detection_config"
+
+    config_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    payer_id = Column(UUID(as_uuid=True), ForeignKey("payer_master.payer_id"), nullable=False)
+    anomaly_type = Column(String(60), nullable=False, index=True)
+    statistical_threshold = Column(Numeric(5, 2), nullable=True)
+    base_deduction = Column(Numeric(5, 2), default=0)
+    severity_multiplier = Column(JSONB, default={"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 1.5})
+    is_active = Column(Boolean, default=True)
+
+
+class SpecialtyBillingThresholds(Base):
+    """Maximum claims per day thresholds by specialty."""
+    __tablename__ = "specialty_billing_thresholds"
+
+    threshold_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    payer_id = Column(UUID(as_uuid=True), ForeignKey("payer_master.payer_id"), nullable=True)
+    specialty = Column(String(100), nullable=False, index=True)
+    max_claims_per_day = Column(Integer, nullable=False, default=8)
+    is_active = Column(Boolean, default=True)
