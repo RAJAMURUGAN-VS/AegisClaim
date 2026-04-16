@@ -1,8 +1,10 @@
 import React from 'react'
 
+export type BadgeStatus = 'APPROVED' | 'PENDING' | 'DENIED' | 'REVIEW' | 'PROCESSING' | 'LOW' | 'MEDIUM' | 'HIGH'
+
 export interface BadgeProps {
   children: React.ReactNode
-  status?: 'APPROVED' | 'PENDING' | 'DENIED' | 'REVIEW' | 'PROCESSING' | 'LOW' | 'MEDIUM' | 'HIGH'
+  status?: BadgeStatus
   size?: 'sm' | 'md'
   className?: string
 }

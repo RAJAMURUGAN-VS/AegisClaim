@@ -388,17 +388,6 @@ const PAStatus: React.FC = () => {
                   </div>
                 )}
 
-                {/* Missing Documents - placeholder since type doesn't have this */}
-                {paData.status === 'PENDING_INFO' && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-900 mb-2">Missing Documents</p>
-                    <ul className="list-disc list-inside text-sm text-gray-700">
-                      <li>Clinical notes</li>
-                      <li>Lab results</li>
-                    </ul>
-                  </div>
-                )}
-
                 <div className="flex gap-3">
                   <Button variant="primary" onClick={() => setShowAppealModal(true)}>
                     Start Appeal
