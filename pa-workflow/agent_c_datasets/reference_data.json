@@ -1,0 +1,144 @@
+{
+  "reference_data": {
+    "denial_reason_codes": {
+      "description": "Mapping of denial reasons for claims",
+      "data": {
+        "STEP_THERAPY_NOT_MET": {
+          "code": "STEP_THERAPY_NOT_MET",
+          "description": "Prior step therapy requirement not completed",
+          "category": "STEP_THERAPY",
+          "is_reversible": true,
+          "appeal_allowed": true,
+          "typical_resolution": "Complete prior step and resubmit"
+        },
+        "QTY_LIMIT_EXCEEDED": {
+          "code": "QTY_LIMIT_EXCEEDED",
+          "description": "Requested quantity exceeds plan limitations",
+          "category": "LIMIT_EXCEEDED",
+          "is_reversible": true,
+          "appeal_allowed": false,
+          "typical_resolution": "Request partial quantity within limit"
+        },
+        "NOT_COVERED": {
+          "code": "NOT_COVERED",
+          "description": "Diagnosis/treatment combination not covered by plan",
+          "category": "COVERAGE",
+          "is_reversible": false,
+          "appeal_allowed": true,
+          "typical_resolution": "Appeal or use alternative covered treatment"
+        },
+        "DUPLICATE_CLAIM": {
+          "code": "DUPLICATE_CLAIM",
+          "description": "Duplicate claim within 30 days",
+          "category": "FRAUD",
+          "is_reversible": true,
+          "appeal_allowed": false,
+          "typical_resolution": "Submit new claim after 30-day period"
+        },
+        "UPCODING_DETECTED": {
+          "code": "UPCODING_DETECTED",
+          "description": "Billed amount significantly exceeds peer average",
+          "category": "FRAUD",
+          "is_reversible": true,
+          "appeal_allowed": true,
+          "typical_resolution": "Provider review and justification"
+        },
+        "UNBUNDLING": {
+          "code": "UNBUNDLING",
+          "description": "CPT codes improperly separated that should be bundled",
+          "category": "FRAUD",
+          "is_reversible": false,
+          "appeal_allowed": false,
+          "typical_resolution": "Rebill with correct bundled code"
+        },
+        "IMPOSSIBLE_BILLING": {
+          "code": "IMPOSSIBLE_BILLING",
+          "description": "Excessive claims in time period (impossible for provider type)",
+          "category": "FRAUD",
+          "is_reversible": true,
+          "appeal_allowed": true,
+          "typical_resolution": "Provider investigation and clarification"
+        },
+        "MISSING_DOCUMENTATION": {
+          "code": "MISSING_DOCUMENTATION",
+          "description": "Required documentation not provided",
+          "category": "MISSING_DOC",
+          "is_reversible": true,
+          "appeal_allowed": true,
+          "typical_resolution": "Submit missing required documents"
+        },
+        "PATIENT_NON_COMPLIANCE": {
+          "code": "PATIENT_NON_COMPLIANCE",
+          "description": "Patient intolerance to prior medication",
+          "category": "STEP_THERAPY",
+          "is_reversible": true,
+          "appeal_allowed": true,
+          "typical_resolution": "Submit prior authorization with documentation of non-compliance"
+        }
+      }
+    },
+    "statistical_parameters": {
+      "description": "Configuration for statistical anomaly detection methods",
+      "data": {
+        "IQR_METHOD": {
+          "name": "Interquartile Range",
+          "use_case": "Detect billing amount outliers",
+          "iqr_multiplier": 1.5,
+          "formula": "Q3 + (1.5 * IQR) = upper_bound; Q1 - (1.5 * IQR) = lower_bound",
+          "minimum_sample_size": 10,
+          "threshold": "Values beyond bounds flagged as HIGH severity"
+        },
+        "Z_SCORE_METHOD": {
+          "name": "Standard Deviation",
+          "use_case": "Detect frequency anomalies",
+          "z_score_threshold": 2.0,
+          "formula": "(value - mean) / stddev",
+          "minimum_sample_size": 20,
+          "threshold": "|z-score| > 2.0 = anomaly (2.58 for 99% confident)"
+        },
+        "PERCENTILE_METHOD": {
+          "name": "Percentile Ranking",
+          "use_case": "Detect provider behavior vs peers",
+          "percentile_threshold": 95,
+          "formula": "rank(provider) / total_providers * 100",
+          "minimum_sample_size": 50,
+          "threshold": "Percentile > 95 = HIGH risk provider"
+        },
+        "FREQUENCY_SPIKE_DETECTION": {
+          "name": "Year-over-Year Growth",
+          "use_case": "Detect sudden changes in billing frequency",
+          "threshold_pct": 50,
+          "formula": "((current_year - prior_year) / prior_year) * 100",
+          "minimum_sample_size": 12,
+          "threshold": "Growth > 50% = MEDIUM severity flag"
+        }
+      }
+    },
+    "severity_levels": {
+      "description": "Severity classification for anomalies",
+      "data": {
+        "LOW": {
+          "level": "LOW",
+          "description": "Minor deviation, normal variation expected",
+          "impact": "Score reduction multiplier: 0.5x",
+          "action": "Log and monitor",
+          "example": "Single duplicate claim in 30-day window"
+        },
+        "MEDIUM": {
+          "level": "MEDIUM",
+          "description": "Moderate deviation, warrants attention",
+          "impact": "Score reduction multiplier: 1.0x",
+          "action": "Flag for review",
+          "example": "50% increase in claim frequency YoY"
+        },
+        "HIGH": {
+          "level": "HIGH",
+          "description": "Significant deviation, likely fraudulent",
+          "impact": "Score reduction multiplier: 1.5x",
+          "action": "Escalate investigation",
+          "example": "Multiple CPT codes improperly unbundled"
+        }
+      }
+    }
+  }
+}

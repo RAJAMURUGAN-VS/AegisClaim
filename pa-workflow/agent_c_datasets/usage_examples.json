@@ -1,0 +1,37 @@
+{
+  "usage_examples": {
+    "agent_c_fraud_detection": {
+      "input": {
+        "pa_id": "PA-UUID-123",
+        "patient_member_id": "MEM001234",
+        "provider_npi": "1234567890",
+        "cpt_codes": ["99214"],
+        "billed_amount": 250.00,
+        "specialty": "Internal Medicine",
+        "state": "CA"
+      },
+      "processing_steps": [
+        "Query claims_history for this patient_member_id and provider_npi (last 30 days)",
+        "Check for duplicate claims with same CPT in 30-day window",
+        "Calculate frequency anomalies (total claims in 30 days, total in 365 days)",
+        "Query provider_risk_profile for provider NPI",
+        "Check bundling rules for CPT combinations",
+        "Detect billing anomalies using IQR statistical method",
+        "Calculate fraud_score using configuration from fraud_detection_config",
+        "Assign risk_flag based on score thresholds"
+      ],
+      "output": {
+        "pa_id": "PA-UUID-123",
+        "fraud_score": 75.0,
+        "risk_flag": "LOW",
+        "anomaly_flags": [],
+        "provider_risk": {
+          "npi": "1234567890",
+          "risk_level": "LOW",
+          "denial_rate": 0.0494
+        },
+        "evaluated_at": "2024-04-14T10:30:00Z"
+      }
+    }
+  }
+}
