@@ -20,16 +20,18 @@ import {
 } from 'recharts'
 import {
   FileText,
-  Clock,
   Users,
   Zap,
   TrendingUp,
   TrendingDown,
   ArrowRight,
+  Calendar,
+  Download,
+  Filter,
 } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
-import { Spinner } from '../../components/common/Spinner'
+import { SkeletonKpiCard } from '../../components/common/Skeleton'
 import {
   useDateRange,
   useDashboardStats,
@@ -46,86 +48,53 @@ import {
   formatDate,
 } from '../../utils/formatters'
 
-// Sparkline component for KPI cards
-const Sparkline: React.FC<{ data: number[]; color: string }> = ({ data, color }) => {
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-
-  const points = data
-    .map((value, index) => {
-      const x = (index / (data.length - 1)) * 100
-      const y = 100 - ((value - min) / range) * 100
-      return `${x},${y}`
-    })
-    .join(' ')
-
-  return (
-    <svg viewBox="0 0 100 100" className="w-full h-8" preserveAspectRatio="none">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        points={points}
-      />
-    </svg>
-  )
-}
-
-// KPI Card Component
-interface KPICardProps {
+// Hero KPI Card with glassmorphism effect
+interface HeroKpiCardProps {
   title: string
   value: number
   yesterdayValue: number
   icon: React.ReactNode
-  color: 'blue' | 'green' | 'orange' | 'gray'
+  gradient: 'blue' | 'green' | 'purple' | 'orange'
   format?: 'number' | 'percentage' | 'time'
-  sparklineData?: number[]
-  clickable?: boolean
+  trend?: 'up' | 'down' | 'neutral'
   onClick?: () => void
 }
 
-const KPICard: React.FC<KPICardProps> = ({
+const HeroKpiCard: React.FC<HeroKpiCardProps> = ({
   title,
   value,
   yesterdayValue,
   icon,
-  color,
+  gradient,
   format = 'number',
-  sparklineData,
-  clickable,
+  trend = 'up',
   onClick,
 }) => {
   const percentageChange = yesterdayValue
     ? ((value - yesterdayValue) / yesterdayValue) * 100
     : 0
   const isPositive = percentageChange >= 0
+  const isTrendGood = trend === 'up' ? isPositive : !isPositive
 
-  const colorClasses = {
-    blue: {
-      bg: 'bg-blue-50 border-blue-200',
-      icon: 'bg-blue-600',
-      text: 'text-blue-900',
-      subtext: 'text-blue-600',
-    },
-    green: {
-      bg: 'bg-green-50 border-green-200',
-      icon: 'bg-green-600',
-      text: 'text-green-900',
-      subtext: 'text-green-600',
-    },
-    orange: {
-      bg: 'bg-orange-50 border-orange-200',
-      icon: 'bg-orange-600',
-      text: 'text-orange-900',
-      subtext: 'text-orange-600',
-    },
-    gray: {
-      bg: 'bg-gray-50 border-gray-200',
-      icon: 'bg-gray-600',
-      text: 'text-gray-900',
-      subtext: 'text-gray-600',
-    },
+  const gradients = {
+    blue: 'from-primary-500/10 via-primary-500/5 to-transparent border-primary-200',
+    green: 'from-success-500/10 via-success-500/5 to-transparent border-success-200',
+    purple: 'from-violet-500/10 via-violet-500/5 to-transparent border-violet-200',
+    orange: 'from-warning-500/10 via-warning-500/5 to-transparent border-warning-200',
+  }
+
+  const bottomBorders = {
+    blue: 'bg-primary-500',
+    green: 'bg-success-500',
+    purple: 'bg-violet-500',
+    orange: 'bg-warning-500',
+  }
+
+  const iconBg = {
+    blue: 'bg-primary-100 text-primary-600',
+    green: 'bg-success-100 text-success-600',
+    purple: 'bg-violet-100 text-violet-600',
+    orange: 'bg-warning-100 text-warning-600',
   }
 
   const formatValue = () => {
@@ -139,49 +108,42 @@ const KPICard: React.FC<KPICardProps> = ({
     }
   }
 
-  const cardContent = (
-    <div className={`p-6 rounded-xl border ${colorClasses[color].bg} ${clickable ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}>
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        relative overflow-hidden rounded-xl bg-white shadow-card 
+        border p-6 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5
+        ${onClick ? 'cursor-pointer' : ''}
+        ${gradients[gradient]}
+      `}
+    >
+      {/* Bottom accent border */}
+      <div className={`absolute bottom-0 left-0 right-0 h-1 ${bottomBorders[gradient]}`} />
+      
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className={`text-3xl font-bold mt-1 ${colorClasses[color].text}`}>
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">{title}</p>
+          <p className="text-3xl font-bold text-neutral-900 mt-2 tabular-nums">
             {formatValue()}
           </p>
-          <div className="flex items-center gap-1 mt-2">
+          <div className="flex items-center gap-1.5 mt-2">
             {isPositive ? (
-              <TrendingUp className="w-4 h-4 text-green-600" />
+              <TrendingUp className={`w-4 h-4 ${isTrendGood ? 'text-success-500' : 'text-danger-500'}`} />
             ) : (
-              <TrendingDown className="w-4 h-4 text-red-600" />
+              <TrendingDown className={`w-4 h-4 ${isTrendGood ? 'text-danger-500' : 'text-success-500'}`} />
             )}
-            <span
-              className={`text-sm font-medium ${
-                isPositive ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
+            <span className={`text-sm font-medium ${isTrendGood ? 'text-success-600' : 'text-danger-600'}`}>
               {Math.abs(percentageChange).toFixed(1)}%
             </span>
-            <span className="text-sm text-gray-400">vs yesterday</span>
+            <span className="text-sm text-neutral-400">vs yesterday</span>
           </div>
         </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color].icon} text-white`}>
+        <div className={`p-3 rounded-xl ${iconBg[gradient]} opacity-80`}>
           {icon}
         </div>
       </div>
-      {sparklineData && (
-        <div className="mt-4">
-          <Sparkline
-            data={sparklineData}
-            color={color === 'blue' ? '#2563eb' : color === 'green' ? '#16a34a' : color === 'orange' ? '#ea580c' : '#4b5563'}
-          />
-        </div>
-      )}
     </div>
-  )
-
-  return clickable ? (
-    <button onClick={onClick} className="w-full text-left">{cardContent}</button>
-  ) : (
-    cardContent
   )
 }
 
@@ -193,11 +155,13 @@ const CustomTooltip: React.FC<{
 }> = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        {label && <p className="font-medium text-gray-900 mb-2">{label}</p>}
+      <div className="bg-white p-3 border border-neutral-200 rounded-xl shadow-elevated">
+        {label && <p className="font-semibold text-sm text-neutral-900 mb-2">{label}</p>}
         {payload.map((entry, index) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: {entry.value}
+          <p key={index} className="text-sm flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-neutral-600">{entry.name}:</span>
+            <span className="font-semibold text-neutral-900">{entry.value}</span>
           </p>
         ))}
       </div>
@@ -206,19 +170,32 @@ const CustomTooltip: React.FC<{
   return null
 }
 
-// Loading skeleton for charts
-const ChartSkeleton: React.FC<{ height?: number }> = ({ height = 300 }) => (
-  <div className="flex items-center justify-center" style={{ height }}>
-    <Spinner size="lg" />
-  </div>
-)
+// Dark Chart Card for premium feel
+interface DarkChartCardProps {
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+  className?: string
+}
+
+const DarkChartCard: React.FC<DarkChartCardProps> = ({ title, subtitle, children, className = '' }) => {
+  return (
+    <div className={`rounded-xl bg-primary-900 p-6 shadow-card ${className}`}>
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        {subtitle && <p className="text-sm text-primary-300 mt-1">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  )
+}
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { dateRange, setDateRange } = useDateRange()
 
   // Fetch all analytics data
-  const { data: stats } = useDashboardStats()
+  const { data: stats, loading: statsLoading } = useDashboardStats()
   const { data: volumeData, loading: volumeLoading } = usePAVolumeChart()
   const { data: decisionData, loading: decisionLoading } = useDecisionDistribution()
   const { data: scoreData, loading: scoreLoading } = useScoreDistribution()
@@ -227,18 +204,8 @@ const Dashboard: React.FC = () => {
 
   // Calculate total from decisions for pie chart center label
   const totalDecisions = useMemo(() => {
-    return decisionData.reduce((sum, item) => sum + item.value, 0)
+    return decisionData?.reduce((sum, item) => sum + (item.value || 0), 0) || 0
   }, [decisionData])
-
-  // Sparkline data (mock for demo - would come from API)
-  const sparklineData = useMemo(() => {
-    return {
-      total: [120, 132, 145, 138, 156, 148, 156],
-      autoApprove: [65, 68, 70, 67, 69, 68, 68.5],
-      humanReview: [35, 32, 30, 28, 26, 25, 23],
-      processingTime: [52, 50, 48, 46, 44, 45, 45],
-    }
-  }, [])
 
   const handleDateRangeChange = (type: 'from' | 'to', value: string) => {
     setDateRange({
@@ -248,100 +215,189 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header with Date Range */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-500 mt-1">Overview of PA system performance and metrics</p>
+          <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
+          <p className="text-neutral-500 mt-1">Real-time overview of your PA workflow performance</p>
         </div>
-        <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">From:</span>
+        
+        <div className="flex items-center gap-3">
+          {/* Date Range Picker */}
+          <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-neutral-200 shadow-sm">
+            <Calendar className="w-4 h-4 text-neutral-400 ml-2" />
             <input
               type="date"
               value={dateRange.from}
               onChange={(e) => handleDateRangeChange('from', e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-2 py-1 text-sm border-0 focus:ring-0 text-neutral-700"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">To:</span>
+            <span className="text-neutral-400">to</span>
             <input
               type="date"
               value={dateRange.to}
               onChange={(e) => handleDateRangeChange('to', e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-2 py-1 text-sm border-0 focus:ring-0 text-neutral-700"
             />
           </div>
+          
+          <Button variant="secondary" icon={Filter} size="sm">
+            Filter
+          </Button>
+          
+          <Button variant="ghost" icon={Download} size="sm">
+            Export
+          </Button>
         </div>
       </div>
 
-      {/* Row 1: KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Total PAs Today"
-          value={stats.totalPAsToday}
-          yesterdayValue={stats.totalPAsYesterday}
-          icon={<FileText className="w-5 h-5" />}
-          color="blue"
-          format="number"
-          sparklineData={sparklineData.total}
-        />
-        <KPICard
-          title="Auto-Approved Rate"
-          value={stats.autoApproveRate}
-          yesterdayValue={stats.autoApproveRateYesterday}
-          icon={<Zap className="w-5 h-5" />}
-          color="green"
-          format="percentage"
-          sparklineData={sparklineData.autoApprove}
-        />
-        <KPICard
-          title="Human Review Queue"
-          value={stats.humanReviewQueue}
-          yesterdayValue={stats.humanReviewQueueYesterday}
-          icon={<Users className="w-5 h-5" />}
-          color="orange"
-          format="number"
-          sparklineData={sparklineData.humanReview}
-          clickable
-          onClick={() => navigate('/adjudicator/queue')}
-        />
-        <KPICard
-          title="Avg Processing Time"
-          value={stats.avgProcessingTime}
-          yesterdayValue={stats.avgProcessingTimeYesterday}
-          icon={<Clock className="w-5 h-5" />}
-          color="gray"
-          format="time"
-          sparklineData={sparklineData.processingTime}
-        />
+      {/* Row 1: Hero KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsLoading ? (
+          <>
+            <SkeletonKpiCard />
+            <SkeletonKpiCard />
+            <SkeletonKpiCard />
+            <SkeletonKpiCard />
+          </>
+        ) : (
+          <>
+            <HeroKpiCard
+              title="Total PAs"
+              value={stats?.totalPAsToday || 0}
+              yesterdayValue={stats?.totalPAsYesterday || 0}
+              icon={<FileText className="w-6 h-6" />}
+              gradient="blue"
+              format="number"
+              trend="up"
+            />
+            <HeroKpiCard
+              title="Approval Rate"
+              value={stats?.autoApproveRate || 0}
+              yesterdayValue={stats?.autoApproveRateYesterday || 0}
+              icon={<Zap className="w-6 h-6" />}
+              gradient="green"
+              format="percentage"
+              trend="up"
+            />
+            <HeroKpiCard
+              title="Avg Processing"
+              value={stats?.avgProcessingTime || 0}
+              yesterdayValue={stats?.avgProcessingTimeYesterday || 0}
+              icon={<TrendingUp className="w-6 h-6" />}
+              gradient="purple"
+              format="time"
+              trend="down"
+            />
+            <HeroKpiCard
+              title="Queue Size"
+              value={stats?.humanReviewQueue || 0}
+              yesterdayValue={stats?.humanReviewQueueYesterday || 0}
+              icon={<Users className="w-6 h-6" />}
+              gradient="orange"
+              format="number"
+              trend="down"
+              onClick={() => navigate('/adjudicator/queue')}
+            />
+          </>
+        )}
       </div>
 
-      {/* Row 2: PieChart + AreaChart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Decision Distribution Pie Chart */}
-        <Card title="PA Decision Distribution" subtitle="Breakdown by decision type">
-          {decisionLoading ? (
-            <ChartSkeleton height={300} />
+      {/* Row 2: PA Volume (Dark) + Decision Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* PA Volume Chart - Dark Card */}
+        <DarkChartCard 
+          title="PA Volume" 
+          subtitle="Last 7 days trend"
+          className="lg:col-span-3"
+        >
+          {volumeLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="animate-pulse space-y-4">
+                <div className="h-32 w-96 bg-primary-800 rounded" />
+              </div>
+            </div>
           ) : (
-            <div className="h-80">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeData || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4A7FCC" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#4A7FCC" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorApprovedVol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2D7D4F" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#2D7D4F" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => formatDate(value)}
+                    stroke="rgba(255,255,255,0.4)"
+                    fontSize={11}
+                    tickLine={false}
+                  />
+                  <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} tickLine={false} />
+                  <Tooltip 
+                    content={<CustomTooltip />}
+                    contentStyle={{ backgroundColor: '#1F3864', border: 'none', borderRadius: '12px' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="submitted"
+                    name="Submitted"
+                    stroke="#4A7FCC"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorVolume)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="approved"
+                    name="Approved"
+                    stroke="#2D7D4F"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorApprovedVol)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </DarkChartCard>
+
+        {/* Decision Distribution - Donut Chart */}
+        <Card 
+          title="Decision Distribution" 
+          subtitle="By outcome type"
+          className="lg:col-span-2"
+        >
+          {decisionLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="animate-pulse">
+                <div className="w-32 h-32 rounded-full border-8 border-neutral-200" />
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={decisionData}
+                    data={decisionData || []}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
+                    innerRadius={70}
                     outerRadius={100}
-                    paddingAngle={2}
+                    paddingAngle={3}
                     dataKey="value"
                     animationBegin={0}
-                    animationDuration={800}
+                    animationDuration={1000}
                   >
-                    {decisionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    {(decisionData || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -352,105 +408,55 @@ const Dashboard: React.FC = () => {
                       return [`${value} (${percentage}%)`, name]
                     }}
                   />
-                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
               {/* Center label */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="text-center mt-8">
-                  <p className="text-3xl font-bold text-gray-900">{totalDecisions}</p>
-                  <p className="text-sm text-gray-500">Total</p>
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-neutral-900">{totalDecisions}</p>
+                  <p className="text-sm text-neutral-500">Total</p>
                 </div>
               </div>
-            </div>
-          )}
-        </Card>
-
-        {/* PA Volume Over Time Area Chart */}
-        <Card title="PA Volume Over Time" subtitle="Last 7 days activity">
-          {volumeLoading ? (
-            <ChartSkeleton height={300} />
-          ) : (
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={volumeData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorSubmitted" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorApproved" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorDenied" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value) => formatDate(value)}
-                    stroke="#6b7280"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="#6b7280" fontSize={12} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="submitted"
-                    name="Submitted"
-                    stroke="#2563eb"
-                    fillOpacity={1}
-                    fill="url(#colorSubmitted)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="approved"
-                    name="Approved"
-                    stroke="#22c55e"
-                    fillOpacity={1}
-                    fill="url(#colorApproved)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="denied"
-                    name="Denied"
-                    stroke="#ef4444"
-                    fillOpacity={1}
-                    fill="url(#colorDenied)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {/* Custom Legend */}
+              <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-4">
+                {(decisionData || []).slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-xs text-neutral-600">{item.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>
       </div>
 
-      {/* Row 3: Bar Charts */}
+      {/* Row 3: Score Distribution + Agent Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Score Distribution */}
-        <Card title="Score Distribution" subtitle="PA score ranges">
+        <Card title="Score Distribution" subtitle="PA scores by range">
           {scoreLoading ? (
-            <ChartSkeleton height={300} />
+            <div className="h-72 flex items-center justify-center">
+              <div className="space-y-3 w-full px-8">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-8 bg-neutral-100 rounded animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={scoreData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="range" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                <BarChart data={scoreData || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="range" stroke="#94A3B8" fontSize={12} tickLine={false} />
+                  <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} />
                   <Tooltip
                     formatter={(value: number) => [value, 'Count']}
-                    cursor={{ fill: '#f3f4f6' }}
+                    cursor={{ fill: '#F1F5F9' }}
+                    content={<CustomTooltip />}
                   />
-                  <Bar dataKey="count" name="PA Count" radius={[4, 4, 0, 0]} animationDuration={1000}>
-                    {scoreData.map((entry, index) => (
+                  <Bar dataKey="count" name="PA Count" radius={[6, 6, 0, 0]} animationDuration={1000}>
+                    {(scoreData || []).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
@@ -460,30 +466,42 @@ const Dashboard: React.FC = () => {
           )}
         </Card>
 
-        {/* Agent Processing Time */}
-        <Card title="Agent Processing Time" subtitle="Average time per agent (seconds)">
+        {/* Agent Performance */}
+        <Card title="Agent Performance" subtitle="Processing time by agent (seconds)">
           {agentLoading ? (
-            <ChartSkeleton height={300} />
+            <div className="h-72 flex items-center justify-center">
+              <div className="space-y-3 w-full px-8">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex gap-2">
+                    <div className="h-8 bg-neutral-100 rounded flex-1 animate-pulse" />
+                    <div className="h-8 bg-neutral-100 rounded flex-1 animate-pulse" />
+                    <div className="h-8 bg-neutral-100 rounded flex-1 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={agentData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <BarChart data={agentData || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                   <XAxis
                     dataKey="date"
                     tickFormatter={(value) => formatDate(value)}
-                    stroke="#6b7280"
-                    fontSize={12}
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
                   />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} />
                   <Tooltip
-                    formatter={(value: number) => [`${value.toFixed(2)}s`, 'Avg Time']}
-                    cursor={{ fill: '#f3f4f6' }}
+                    formatter={(value: number) => [`${value.toFixed(2)}s`, 'Time']}
+                    cursor={{ fill: '#F1F5F9' }}
+                    content={<CustomTooltip />}
                   />
-                  <Legend />
-                  <Bar dataKey="agentA" name="Agent A (Clinical)" fill="#2563eb" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="agentB" name="Agent B (Policy)" fill="#7c3aed" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="agentC" name="Agent C (Fraud)" fill="#db2777" radius={[2, 2, 0, 0]} />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar dataKey="agentA" name="Clinical Agent" fill="#4A7FCC" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="agentB" name="Policy Agent" fill="#2E5FA3" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="agentC" name="Fraud Agent" fill="#1F3864" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -491,56 +509,68 @@ const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Row 4: Risk Flag Trend (Full Width) */}
-      <Card title="Risk Flag Trend" subtitle="Last 30 days risk distribution">
+      {/* Row 4: Risk Trend (Full Width) */}
+      <Card title="Risk Trend" subtitle="30-day risk level distribution">
         {riskLoading ? (
-          <ChartSkeleton height={350} />
+          <div className="h-80 flex items-center justify-center">
+            <div className="w-full px-8 space-y-4">
+              <div className="h-1 bg-neutral-200 rounded-full overflow-hidden">
+                <div className="h-full w-1/3 bg-neutral-300 animate-pulse" />
+              </div>
+              <div className="flex gap-4">
+                {[...Array(30)].map((_, i) => (
+                  <div key={i} className="flex-1 h-32 bg-neutral-100 rounded animate-pulse" style={{ height: `${20 + Math.random() * 80}px` }} />
+                ))}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={riskData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <LineChart data={riskData || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                 <XAxis
                   dataKey="date"
                   tickFormatter={(value) => formatDate(value)}
-                  stroke="#6b7280"
-                  fontSize={12}
+                  stroke="#94A3B8"
+                  fontSize={11}
+                  tickLine={false}
                 />
-                <YAxis stroke="#6b7280" fontSize={12} />
+                <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 <ReferenceLine
                   y={10}
-                  label="HIGH > 10% threshold"
-                  stroke="#ef4444"
+                  label={{ value: 'Alert Threshold', position: 'insideTopRight', fill: '#DC2626', fontSize: 11 }}
+                  stroke="#DC2626"
                   strokeDasharray="5 5"
                 />
                 <Line
                   type="monotone"
                   dataKey="LOW"
                   name="Low Risk"
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  dot={{ fill: '#22c55e', r: 3 }}
-                  activeDot={{ r: 6 }}
+                  stroke="#2D7D4F"
+                  strokeWidth={3}
+                  dot={{ fill: '#2D7D4F', r: 4, strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="MEDIUM"
                   name="Medium Risk"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  dot={{ fill: '#f97316', r: 3 }}
-                  activeDot={{ r: 6 }}
+                  stroke="#C55A11"
+                  strokeWidth={3}
+                  dot={{ fill: '#C55A11', r: 4, strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="HIGH"
                   name="High Risk"
-                  stroke="#ef4444"
-                  strokeWidth={2}
-                  dot={{ fill: '#ef4444', r: 3 }}
-                  activeDot={{ r: 6 }}
+                  stroke="#DC2626"
+                  strokeWidth={3}
+                  dot={{ fill: '#DC2626', r: 4, strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -548,11 +578,12 @@ const Dashboard: React.FC = () => {
         )}
       </Card>
 
-      {/* View All PAs Link */}
-      <div className="flex justify-end">
+      {/* View All Link */}
+      <div className="flex justify-end pt-4">
         <Button
-          variant="ghost"
+          variant="secondary"
           icon={ArrowRight}
+          iconPosition="right"
           onClick={() => navigate('/admin/pa-list')}
         >
           View All PA Requests

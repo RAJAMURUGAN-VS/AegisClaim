@@ -377,3 +377,64 @@ async def chat_on_pa_context(
     }
 
 
+# Payer endpoints
+@router.get("/payers")
+async def get_payers(current_user: User = Depends(get_current_user)):
+    """Get all active payers."""
+    # TODO: Fetch from PostgreSQL
+    return [
+        {"id": "payer-001", "name": "Blue Cross Blue Shield", "code": "BCBS", "isActive": True},
+        {"id": "payer-002", "name": "Aetna", "code": "AET", "isActive": True},
+        {"id": "payer-003", "name": "UnitedHealthcare", "code": "UHC", "isActive": True},
+        {"id": "payer-004", "name": "Cigna", "code": "CIG", "isActive": True},
+    ]
+
+
+@router.get("/plans")
+async def get_plans(payer_id: str, current_user: User = Depends(get_current_user)):
+    """Get plans by payer ID."""
+    # TODO: Fetch from PostgreSQL based on payer_id
+    plans_db = {
+        "payer-001": [
+            {"id": "plan-001", "payerId": "payer-001", "name": "Blue Cross PPO", "planCode": "BCBS-PPO", "planType": "PPO", "isActive": True},
+            {"id": "plan-002", "payerId": "payer-001", "name": "Blue Cross HMO", "planCode": "BCBS-HMO", "planType": "HMO", "isActive": True},
+        ],
+        "payer-002": [
+            {"id": "plan-003", "payerId": "payer-002", "name": "Aetna Open Choice", "planCode": "AET-OPEN", "planType": "PPO", "isActive": True},
+            {"id": "plan-004", "payerId": "payer-002", "name": "Aetna Managed Choice", "planCode": "AET-MAN", "planType": "HMO", "isActive": True},
+        ],
+        "payer-003": [
+            {"id": "plan-005", "payerId": "payer-003", "name": "UHC Choice Plus", "planCode": "UHC-CP", "planType": "PPO", "isActive": True},
+        ],
+        "payer-004": [
+            {"id": "plan-006", "payerId": "payer-004", "name": "Cigna Connect", "planCode": "CIG-CON", "planType": "HMO", "isActive": True},
+        ],
+    }
+    return plans_db.get(payer_id, [])
+
+
+@router.get("/documents/requirements")
+async def get_document_requirements(treatment_type: str, current_user: User = Depends(get_current_user)):
+    """Get document requirements based on treatment type."""
+    # TODO: Fetch from database based on treatment_type
+    requirements_db = {
+        "medication": {
+            "required": ["Prescription", "Clinical Notes", "Lab Results"],
+            "optional": ["Prior Treatment History", "Insurance Card"]
+        },
+        "procedure": {
+            "required": ["Procedure Order", "Clinical Notes", "Imaging Reports"],
+            "optional": ["Consent Form", "Insurance Card"]
+        },
+        "imaging": {
+            "required": ["Imaging Order", "Clinical Justification"],
+            "optional": ["Previous Imaging", "Insurance Card"]
+        },
+        "specialist": {
+            "required": ["Referral Order", "Clinical Notes"],
+            "optional": ["Patient History", "Insurance Card"]
+        },
+    }
+    return requirements_db.get(treatment_type.lower(), {"required": [], "optional": []})
+
+

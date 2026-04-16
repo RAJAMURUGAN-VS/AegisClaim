@@ -49,7 +49,7 @@ export const paService = {
 
   // Submit PA (alias for createPA with specific endpoint)
   submitPA: async (data: PASubmissionFormData): Promise<PARequest> => {
-    const response = await api.post<PARequest>('/api/v1/pa/submit', data)
+    const response = await api.post<PARequest>('/pa/submit', data)
     return response.data
   },
 
@@ -61,7 +61,7 @@ export const paService = {
 
   // Get PA status (specific endpoint for status tracking)
   getPAStatus: async (id: string): Promise<PARequest> => {
-    const response = await api.get<PARequest>(`/api/v1/pa/${id}`)
+    const response = await api.get<PARequest>(`/pa/${id}/status`)
     return response.data
   },
 
@@ -121,7 +121,7 @@ export const paService = {
     decisionData: DecisionFormData
   ): Promise<PARequest> => {
     const response = await api.post<PARequest>(
-      `/api/v1/pa/${paId}/decision`,
+      `/pa/${paId}/decision`,
       decisionData
     )
     return response.data
@@ -129,7 +129,7 @@ export const paService = {
 
   // Submit appeal for PA (for provider)
   submitAppeal: async (paId: string, reason: string): Promise<PARequest> => {
-    const response = await api.post<PARequest>(`/api/v1/pa/${paId}/appeal`, {
+    const response = await api.post<PARequest>(`/pa/${paId}/appeal`, {
       reason,
     })
     return response.data
@@ -201,13 +201,13 @@ export const paService = {
 
   // Get all payers
   getPayers: async (): Promise<Payer[]> => {
-    const response = await api.get<Payer[]>('/api/v1/payers')
+    const response = await api.get<Payer[]>('/payers')
     return response.data
   },
 
   // Get plans by payer ID
   getPlansByPayer: async (payerId: string): Promise<Plan[]> => {
-    const response = await api.get<Plan[]>('/api/v1/plans', {
+    const response = await api.get<Plan[]>('/plans', {
       params: { payer_id: payerId },
     })
     return response.data
@@ -215,7 +215,7 @@ export const paService = {
 
   // Get document requirements based on treatment type
   getDocumentRequirements: async (treatmentType: string): Promise<DocumentRequirements> => {
-    const response = await api.get<DocumentRequirements>('/api/v1/documents/requirements', {
+    const response = await api.get<DocumentRequirements>('/documents/requirements', {
       params: { treatment_type: treatmentType },
     })
     return response.data
