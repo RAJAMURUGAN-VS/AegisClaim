@@ -1,0 +1,110 @@
+[
+  {
+    "icd10_code": "S52",
+    "diagnosis": "Fracture",
+    "valid_procedures": [
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      },
+      {
+        "cpt_code": "71250",
+        "name": "CT Scan"
+      },
+      {
+        "cpt_code": "10021",
+        "name": "Surgery"
+      }
+    ]
+  },
+  {
+    "icd10_code": "J00",
+    "diagnosis": "Common Cold",
+    "valid_procedures": [
+      {
+        "cpt_code": "MED001",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "80050",
+        "name": "Blood Test"
+      }
+    ]
+  },
+  {
+    "icd10_code": "M54",
+    "diagnosis": "Back Pain",
+    "valid_procedures": [
+      {
+        "cpt_code": "97110",
+        "name": "Physiotherapy"
+      },
+      {
+        "cpt_code": "70551",
+        "name": "MRI"
+      }
+    ]
+  },
+  {
+    "icd10_code": "I21",
+    "diagnosis": "Heart Attack",
+    "valid_procedures": [
+      {
+        "cpt_code": "92928",
+        "name": "Angioplasty"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      }
+    ]
+  },
+  {
+    "icd10_code": "K35",
+    "diagnosis": "Appendicitis",
+    "valid_procedures": [
+      {
+        "cpt_code": "44950",
+        "name": "Appendectomy"
+      },
+      {
+        "cpt_code": "74177",
+        "name": "CT Abdomen"
+      }
+    ]
+  },
+  {
+    "icd10_code": "H25",
+    "diagnosis": "Cataract",
+    "valid_procedures": [
+      {
+        "cpt_code": "66984",
+        "name": "Cataract Surgery"
+      }
+    ]
+  },
+  {
+    "icd10_code": "E11",
+    "diagnosis": "Diabetes",
+    "valid_procedures": [
+      {
+        "cpt_code": "MED001",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "80050",
+        "name": "Blood Test"
+      }
+    ]
+  },
+  {
+  "icd10_code": "C50",
+  "diagnosis": "Cancer",
+  "valid_procedures": [
+    {
+      "cpt_code": "96413",
+      "name": "Chemotherapy"
+    }
+  ]
+}
+]

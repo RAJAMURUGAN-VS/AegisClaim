@@ -1,0 +1,155 @@
+{
+  "plans": [
+    {
+      "payer_id": "HDFC",
+      "plan_id": "HDFC_BASIC_300K",
+      "coverage_limit": 300000,
+      "procedures": [
+        {
+          "cpt_code": "71020",
+          "name": "X-Ray",
+          "max_cost": 5000
+        },
+        {
+          "cpt_code": "71250",
+          "name": "CT Scan",
+          "max_cost": 15000
+        },
+        {
+          "cpt_code": "70551",
+          "name": "MRI",
+          "max_cost": 20000
+        },
+        {
+          "cpt_code": "80050",
+          "name": "Blood Test",
+          "max_cost": 2000
+        },
+        {
+          "cpt_code": "97110",
+          "name": "Physiotherapy",
+          "max_cost": 5000
+        },
+        {
+          "cpt_code": "44950",
+          "name": "Appendectomy",
+          "max_cost": 120000
+        },
+        {
+          "cpt_code": "66984",
+          "name": "Cataract Surgery",
+          "max_cost": 100000
+        }
+      ],
+      "documents_required": [
+        "prescription",
+        "lab_report"
+      ],
+      "policy_rules": {
+        "waiting_period_days": 30,
+        "max_claims_per_year": 3
+      }
+    },
+    {
+      "payer_id": "ICICI",
+      "plan_id": "ICICI_STANDARD_250K",
+      "coverage_limit": 250000,
+      "procedures": [
+        {
+          "cpt_code": "71020",
+          "name": "X-Ray",
+          "max_cost": 4000
+        },
+        {
+          "cpt_code": "71250",
+          "name": "CT Scan",
+          "max_cost": 12000
+        },
+        {
+          "cpt_code": "70551",
+          "name": "MRI",
+          "max_cost": 18000
+        },
+        {
+          "cpt_code": "97110",
+          "name": "Physiotherapy",
+          "max_cost": 4000
+        },
+        {
+          "cpt_code": "44950",
+          "name": "Appendectomy",
+          "max_cost": 100000
+        }
+      ],
+      "documents_required": [
+        "prescription",
+        "lab_report"
+      ],
+      "policy_rules": {
+        "waiting_period_days": 30,
+        "max_claims_per_year": 2
+      }
+    },
+    {
+      "payer_id": "STAR",
+      "plan_id": "STAR_COMPREHENSIVE_400K",
+      "coverage_limit": 400000,
+      "procedures": [
+        {
+          "cpt_code": "71020",
+          "name": "X-Ray",
+          "max_cost": 6000
+        },
+        {
+          "cpt_code": "71250",
+          "name": "CT Scan",
+          "max_cost": 18000
+        },
+        {
+          "cpt_code": "70551",
+          "name": "MRI",
+          "max_cost": 25000
+        },
+        {
+          "cpt_code": "80050",
+          "name": "Blood Test",
+          "max_cost": 2500
+        },
+        {
+          "cpt_code": "97110",
+          "name": "Physiotherapy",
+          "max_cost": 6000
+        },
+        {
+          "cpt_code": "92928",
+          "name": "Angioplasty",
+          "max_cost": 350000
+        },
+        {
+          "cpt_code": "96413",
+          "name": "Chemotherapy",
+          "max_cost": 400000
+        },
+        {
+          "cpt_code": "44950",
+          "name": "Appendectomy",
+          "max_cost": 130000
+        },
+        {
+          "cpt_code": "66984",
+          "name": "Cataract Surgery",
+          "max_cost": 120000
+        }
+      ],
+      "documents_required": [
+        "prescription",
+        "lab_report",
+        "scan_report"
+      ],
+      "policy_rules": {
+        "waiting_period_days": 20,
+        "max_claims_per_year": 4
+      }
+    }
+  ]
+}
