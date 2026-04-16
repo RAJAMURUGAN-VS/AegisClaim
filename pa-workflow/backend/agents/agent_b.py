@@ -1,197 +1,152 @@
-import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from uuid import UUID
+import json
+from datetime import datetime
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+# ---------------- LOAD DATASETS ---------------- #
 
-from core.exceptions import PolicyRuleNotFoundException, ComplianceCheckException
-from models.postgres_models import PlanMaster, PARequest, ICDCPTCrosswalk, StatusEnum
+with open("mapping_dataset.json") as f:
+    mapping_data = json.load(f)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+with open("planmaster_with_star.json") as f:
+    plan_data = json.load(f)["plans"]
 
-# --- Dataclasses for Agent B ---
+with open("insurance_mock10000.json") as f:
+    history_data = json.load(f)
 
-@dataclass
-class PayerRules:
-    """Represents the fetched rules for a specific plan."""
-    payer_id: UUID
-    plan_id: UUID
-    rule_version_id: UUID # Using plan_id as a placeholder for version
-    step_therapy_required: bool
-    max_quantity: Optional[int]
-    pa_required: bool
-    active: bool = True
-
-@dataclass
-class CheckResult:
-    """Stores the result of a single compliance check."""
-    check_name: str
-    passed: bool
-    reason: Optional[str] = None
-    score_impact: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
-
-@dataclass
-class AgentBOutput:
-    """The final output structure for the Policy Compliance Agent."""
-    pa_id: UUID
-    policy_score: float
-    compliance_flags: List[str] = field(default_factory=list)
-    matched_rule_id: Optional[UUID] = None
-    step_therapy_status: str = "NOT_APPLICABLE"
-    check_results: List[CheckResult] = field(default_factory=list)
-    evaluated_at: datetime = field(default_factory=datetime.utcnow)
+with open("network_hospitals.json") as f:
+    network_data = json.load(f)
 
 
-class PolicyComplianceAgent:
-    """
-    Agent B: Evaluates a PA request against payer coverage policies.
-    """
-    def __init__(self, db_session: AsyncSession):
-        self.db = db_session
+# ---------------- HELPER FUNCTIONS ---------------- #
 
-    async def evaluate(
-        self, pa_id: UUID, fhir_bundle: Dict[str, Any], patient_member_id: str, payer_id: UUID, plan_id: UUID
-    ) -> AgentBOutput:
-        """Main entry point to run all compliance checks."""
-        logger.info(f"[{pa_id}] Starting policy compliance evaluation.")
-        
-        try:
-            rules = await self._fetch_payer_rules(payer_id, plan_id)
-        except PolicyRuleNotFoundException as e:
-            logger.error(f"[{pa_id}] Critical error: {e}")
-            # This would likely result in an immediate denial or human review
-            return AgentBOutput(pa_id=pa_id, policy_score=0.0, compliance_flags=["NO_ACTIVE_POLICY_RULE"])
+def get_icd_code(diagnosis):
+    for item in mapping_data:
+        if item["diagnosis"].lower() == diagnosis.lower():
+            return item["icd10_code"], item["valid_procedures"]
+    return None, []
 
-        # Extract data from FHIR bundle
-        icd10_codes = [
-            entry['resource']['code']['coding'][0]['code']
-            for entry in fhir_bundle.get('entry', [])
-            if entry['resource']['resourceType'] == 'Condition'
-        ]
-        cpt_codes = [
-            entry['resource']['code']['coding'][0]['code']
-            for entry in fhir_bundle.get('entry', [])
-            if entry['resource']['resourceType'] == 'Procedure'
-        ]
-        # Placeholder for requested quantity and prior history
-        requested_qty = 1 
-        prior_history = "Patient has a history of hypertension."
 
-        all_checks: List[CheckResult] = []
+def get_plan(payer_name):
+    for plan in plan_data:
+        if payer_name.lower() in plan["payer_id"].lower():
+            return plan
+    return None
 
-        # Run all checks
-        all_checks.append(await self._check_diagnosis_treatment_match(icd10_codes, cpt_codes, rules))
-        all_checks.append(await self._check_step_therapy(pa_id, prior_history, rules))
-        all_checks.append(await self._check_quantity_limits(requested_qty, rules))
-        all_checks.append(await self._check_prior_history(pa_id, patient_member_id, cpt_codes))
 
-        policy_score = self._calculate_policy_score(all_checks)
-        failed_flags = [res.reason for res in all_checks if not res.passed and res.reason]
-        
-        step_therapy_check = next((res for res in all_checks if res.check_name == "step_therapy"), None)
-        step_therapy_status = step_therapy_check.reason if step_therapy_check else "ERROR"
+def get_cpt_code(procedure, valid_procedures):
+    for proc in valid_procedures:
+        if proc["name"].lower() == procedure.lower():
+            return proc["cpt_code"]
+    return None
 
-        logger.info(f"[{pa_id}] Policy evaluation completed. Score: {policy_score}, Flags: {failed_flags}")
 
-        return AgentBOutput(
-            pa_id=pa_id,
-            policy_score=policy_score,
-            compliance_flags=failed_flags,
-            matched_rule_id=rules.rule_version_id,
-            step_therapy_status=step_therapy_status,
-            check_results=all_checks,
-        )
+def check_claim_frequency(policy, history):
+    max_claims = policy["policy_rules"]["max_claims_per_year"]
+    return history["previous_claims"] < max_claims
 
-    async def _fetch_payer_rules(self, payer_id: UUID, plan_id: UUID) -> PayerRules:
-        """Fetches active rules for a given payer and plan from the database."""
-        stmt = select(PlanMaster).where(PlanMaster.plan_id == plan_id, PlanMaster.payer_id == payer_id)
-        result = await self.db.execute(stmt)
-        plan = result.scalar_one_or_none()
 
-        if not plan:
-            raise PolicyRuleNotFoundException(f"No plan found for plan_id {plan_id} and payer_id {payer_id}")
-        
-        # Assuming the plan record itself contains the rules for simplicity
-        return PayerRules(
-            payer_id=plan.payer_id,
-            plan_id=plan.plan_id,
-            rule_version_id=plan.plan_id, # Placeholder
-            step_therapy_required=plan.step_therapy_required,
-            max_quantity=plan.max_quantity,
-            pa_required=plan.pa_required,
-        )
 
-    async def _check_diagnosis_treatment_match(self, icd10_codes: List[str], cpt_codes: List[str], rules: PayerRules) -> CheckResult:
-        """Verifies that the diagnosis and treatment codes are a covered combination."""
-        check_name = "diagnosis_treatment_match"
-        try:
-            for cpt in cpt_codes:
-                stmt = select(ICDCPTCrosswalk.is_covered).where(
-                    ICDCPTCrosswalk.cpt_code == cpt,
-                    ICDCPTCrosswalk.icd10_code.in_(icd10_codes),
-                    ICDCPTCrosswalk.is_covered == True
-                )
-                result = await self.db.execute(stmt)
-                if not result.scalar_one_or_none():
-                    return CheckResult(check_name, False, "DIAGNOSIS_TREATMENT_MISMATCH", -40.0, {"cpt": cpt, "icd10": icd10_codes})
-            return CheckResult(check_name, True)
-        except Exception as e:
-            raise ComplianceCheckException(f"Error in {check_name}: {e}")
+def check_network_hospital(payer_id, hospital_name, location):
+    for payer in network_data:
+        if payer["payer_id"].lower() == payer_id.lower():
+            for hospital in payer["network_hospitals"]:
+                if (
+                    hospital["name"].lower() == hospital_name.lower()
+                    and hospital["location"].lower() == location.lower()
+                ):
+                    return "NETWORK"
+            return "NON-NETWORK"
+    return "UNKNOWN"
 
-    async def _check_step_therapy(self, pa_id: UUID, prior_history: str, rules: PayerRules) -> CheckResult:
-        """Checks if step therapy requirements have been met."""
-        check_name = "step_therapy"
-        if not rules.step_therapy_required:
-            return CheckResult(check_name, True, "NOT_APPLICABLE")
 
-        keywords = ["failed", "inadequate response", "contraindicated", "adverse reaction", "ineffective"]
-        if any(keyword in prior_history.lower() for keyword in keywords):
-            return CheckResult(check_name, True, "PASSED")
-        else:
-            return CheckResult(check_name, False, "STEP_THERAPY_NOT_MET", -30.0)
+# ---------------- MAIN AGENT B FUNCTION ---------------- #
 
-    async def _check_quantity_limits(self, requested_qty: int, rules: PayerRules) -> CheckResult:
-        """Checks if the requested quantity exceeds plan limits."""
-        check_name = "quantity_limits"
-        if rules.max_quantity is None:
-            return CheckResult(check_name, True, "NOT_APPLICABLE")
-        
-        if requested_qty > rules.max_quantity:
-            return CheckResult(check_name, False, "QTY_LIMIT_EXCEEDED", -20.0, {"requested": requested_qty, "limit": rules.max_quantity})
-        else:
-            return CheckResult(check_name, True, "PASSED")
+def agent_b_policy_check(claim):
 
-    async def _check_prior_history(self, pa_id: UUID, patient_member_id: str, cpt_codes: List[str]) -> CheckResult:
-        """Checks for duplicate approved PAs within the validity period."""
-        check_name = "prior_history"
-        try:
-            ninety_days_ago = datetime.utcnow() - timedelta(days=90)
-            stmt = select(PARequest).where(
-                PARequest.pa_id != pa_id,
-                PARequest.patient_member_id == patient_member_id,
-                PARequest.cpt_codes.op('&&')(cpt_codes), # Check for array overlap
-                PARequest.status == StatusEnum.APPROVED,
-                PARequest.decided_at >= ninety_days_ago
-            )
-            result = await self.db.execute(stmt)
-            duplicate = result.scalar_one_or_none()
+    reasons = []
+    decision = "APPROVED"
 
-            if duplicate:
-                return CheckResult(check_name, False, "DUPLICATE_PA_DETECTED", -50.0, {"duplicate_pa_id": duplicate.pa_id})
-            else:
-                return CheckResult(check_name, True, "PASSED")
-        except Exception as e:
-            raise ComplianceCheckException(f"Error in {check_name}: {e}")
+    # ---------------- 1. POLICY ACTIVE ---------------- #
+    if not claim["policy"]["active"]:
+        return {"decision": "REJECTED", "reason": "Policy inactive"}
 
-    def _calculate_policy_score(self, check_results: List[CheckResult]) -> float:
-        """Calculates the final policy score based on check results."""
-        score = 100.0
-        for result in check_results:
-            if not result.passed:
-                score += result.score_impact
-        return max(0.0, score)
+    # ---------------- 2. DIAGNOSIS → ICD ---------------- #
+    diagnosis = claim["medical"]["diagnosis"]
+    icd_code, valid_procedures = get_icd_code(diagnosis)
+
+    if not icd_code:
+        return {"decision": "REJECTED", "reason": "Unknown diagnosis"}
+
+    # ---------------- 3. PROCEDURE VALIDATION ---------------- #
+    procedure = claim["medical"]["procedure"]
+    cpt_code = get_cpt_code(procedure, valid_procedures)
+
+    if not cpt_code:
+        reasons.append("Procedure not valid for diagnosis")
+        decision = "REJECTED"
+
+    # ---------------- 4. PLAN FETCH ---------------- #
+    payer = claim["policy"]["insurance_company"]
+    plan = get_plan(payer)
+
+    if not plan:
+        return {"decision": "REJECTED", "reason": "Plan not found"}
+
+    # ---------------- 5. 🏥 HOSPITAL NETWORK CHECK ---------------- #
+    hospital_name = claim["hospital"]["name"]
+    hospital_location = claim["hospital"]["location"]
+
+    hospital_status = check_network_hospital(
+        payer, hospital_name, hospital_location
+    )
+
+    if hospital_status == "NON-NETWORK":
+        reasons.append("Hospital is not in insurer network (reimbursement case)")
+        decision = "REVIEW"
+
+    elif hospital_status == "UNKNOWN":
+        return {"decision": "REJECTED", "reason": "Unknown hospital"}
+
+    # ---------------- 6. COVERAGE CHECK ---------------- #
+    covered = False
+    max_cost = None
+
+    for proc in plan["procedures"]:
+        if proc["cpt_code"] == cpt_code:
+            covered = True
+            max_cost = proc["max_cost"]
+
+    if not covered:
+        reasons.append("Procedure not covered in plan")
+        decision = "REJECTED"
+
+    # ---------------- 7. COST CHECK ---------------- #
+    cost = claim["financial"]["estimated_cost"]
+
+    if max_cost and cost > max_cost:
+        reasons.append("Cost exceeds limit")
+        decision = "REVIEW"
+
+    # ---------------- 8. DOCUMENT CHECK ---------------- #
+    required_docs = plan["documents_required"]
+    user_docs = claim["documents"]
+
+    for doc in required_docs:
+        if not user_docs.get(doc, False):
+            reasons.append(f"Missing document: {doc}")
+            decision = "REVIEW"
+
+    # ---------------- 9. CLAIM HISTORY CHECK ---------------- #
+    history = claim["history"]
+
+    if not check_claim_frequency(plan, history):
+        reasons.append("Claim frequency exceeded")
+        decision = "REJECTED"
+
+    # ---------------- FINAL OUTPUT ---------------- #
+    return {
+        "decision": decision,
+        "icd_code": icd_code,
+        "cpt_code": cpt_code,
+        "hospital_status": hospital_status,  
+        "reasons": reasons if reasons else ["All checks passed"]
+    }
