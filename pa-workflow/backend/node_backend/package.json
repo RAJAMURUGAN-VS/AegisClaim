@@ -1,0 +1,11 @@
+{
+  "name": "pa-workflow",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {},
+  "dependencies": {
+    "axios": "^1.15.0",
+    "form-data": "^4.0.5",
+    "multer": "^2.1.1"
+  }
+}
