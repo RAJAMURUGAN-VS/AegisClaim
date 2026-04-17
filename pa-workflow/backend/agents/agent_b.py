@@ -31,11 +31,11 @@ def get_icd_code(diagnosis):
 
 
 def get_plan(payer_name):
-    """Match payer by checking if any plan's payer_id is in the payer_name."""
+    """Match payer by checking if payer_name starts with plan's payer_id."""
     payer_lower = payer_name.lower()
     for plan in plan_data:
-        # Check if plan's payer_id (e.g., 'hdfc') is contained in payer_name (e.g., 'hdfc ergo')
-        if plan["payer_id"].lower() in payer_lower:
+        # Use safer prefix matching instead of substring matching
+        if payer_lower.startswith(plan["payer_id"].lower()):
             return plan
     return None
 
@@ -52,29 +52,69 @@ def check_claim_frequency(policy, history):
     return history["previous_claims"] < max_claims
 
 
-
 def check_network_hospital(payer_id, hospital_name, location):
     """Check if hospital is in network. Allows partial name matching (e.g., 'Fortis' matches 'Fortis Hospital')."""
     payer_lower = payer_id.lower()
     hospital_lower = hospital_name.lower()
     location_lower = location.lower()
 
-    for payer in network_data:
-        # Check if payer's payer_id is contained in the provided payer_id
-        if payer["payer_id"].lower() in payer_lower:
-            for hospital in payer["network_hospitals"]:
-                hosp_name_lower = hospital["name"].lower()
-                hosp_location_lower = hospital["location"].lower()
-                # Check for exact match or partial match (hospital name contains the input or vice versa)
-                name_match = (hosp_name_lower == hospital_lower or
-                             hospital_lower in hosp_name_lower or
-                             hosp_name_lower in hospital_lower)
-                location_match = hosp_location_lower == location_lower
+    # Iterate over flat network_data structure
+    for hospital in network_data:
+        # Check if hospital's payer_id matches
+        if hospital["payer_id"].lower() in payer_lower:
+            hosp_name_lower = hospital["name"].lower()
+            hosp_location_lower = hospital["city"].lower()
+            # Check for exact match or partial match (hospital name contains the input or vice versa)
+            name_match = (hosp_name_lower == hospital_lower or
+                         hospital_lower in hosp_name_lower or
+                         hosp_name_lower in hospital_lower)
+            location_match = hosp_location_lower == location_lower
 
-                if name_match and location_match:
-                    return "NETWORK"
-            return "NON-NETWORK"
+            if name_match and location_match:
+                return "NETWORK"
+
+    # Check if payer exists in network at all
+    payer_exists = any(h["payer_id"].lower() in payer_lower for h in network_data)
+    if payer_exists:
+        return "NON-NETWORK"
     return "UNKNOWN"
+
+
+def check_step_therapy(plan, procedure, history):
+    """
+    Check if step therapy requirements are satisfied.
+
+    Returns:
+        (True, None) if step therapy satisfied or not required
+        (False, required_steps_list) if step therapy not completed
+    """
+    step_therapy = plan.get("step_therapy", {})
+
+    # Check if step therapy is required
+    if not step_therapy.get("required", False):
+        return True, None
+
+    rules = step_therapy.get("rules", {})
+    required_steps = rules.get(procedure, [])
+
+    # If no specific rules for this procedure, step therapy is satisfied
+    if not required_steps:
+        return True, None
+
+    # Get past procedures from history
+    past_procedures = history.get("past_procedures", [])
+    past_procedures_lower = [p.lower() for p in past_procedures]
+
+    # Check which required prior steps are missing
+    missing_steps = []
+    for step in required_steps:
+        if step.lower() not in past_procedures_lower:
+            missing_steps.append(step)
+
+    if missing_steps:
+        return False, missing_steps
+
+    return True, None
 
 
 # ---------------- MAIN AGENT B FUNCTION ---------------- #
@@ -110,9 +150,18 @@ def agent_b_policy_check(claim):
     if not plan:
         return {"decision": "REJECTED", "reason": "Plan not found"}
 
-    # ---------------- 5. 🏥 HOSPITAL NETWORK CHECK ---------------- #
-    hospital_name = claim["hospital"]["name"]
-    hospital_location = claim["hospital"]["location"]
+    # ---------------- 4b. STEP THERAPY VALIDATION ---------------- #
+    history = claim.get("history", {})
+    step_ok, missing_steps = check_step_therapy(plan, procedure, history)
+
+    if not step_ok:
+        reasons.append(f"Step therapy not completed. Required prior: {missing_steps}")
+        if decision != "REJECTED":
+            decision = "REVIEW"
+
+    # ---------------- 5. HOSPITAL NETWORK CHECK ---------------- #
+    hospital_name = claim.get("hospital", {}).get("name", "")
+    hospital_location = claim.get("hospital", {}).get("location", "")
 
     hospital_status = check_network_hospital(
         payer, hospital_name, hospital_location
@@ -130,17 +179,18 @@ def agent_b_policy_check(claim):
     covered = False
     max_cost = None
 
-    for proc in plan["procedures"]:
-        if proc["cpt_code"] == cpt_code:
+    for proc in plan.get("procedures", []):
+        if proc.get("cpt_code") == cpt_code:
             covered = True
-            max_cost = proc["max_cost"]
+            max_cost = proc.get("max_cost")
+            break  # Exit loop immediately after finding match
 
     if not covered:
         reasons.append("Procedure not covered in plan")
         decision = "REJECTED"
 
     # ---------------- 7. COST CHECK ---------------- #
-    cost = claim["financial"]["estimated_cost"]
+    cost = claim.get("financial", {}).get("estimated_cost", 0)
 
     if max_cost and cost > max_cost:
         reasons.append("Cost exceeds limit")
@@ -148,8 +198,8 @@ def agent_b_policy_check(claim):
             decision = "REVIEW"
 
     # ---------------- 8. DOCUMENT CHECK ---------------- #
-    required_docs = plan["documents_required"]
-    user_docs = claim["documents"]
+    required_docs = plan.get("documents_required", [])
+    user_docs = claim.get("documents", {})
 
     # Map common variations of document keys
     doc_key_mapping = {
@@ -173,8 +223,6 @@ def agent_b_policy_check(claim):
                 decision = "REVIEW"
 
     # ---------------- 9. CLAIM HISTORY CHECK ---------------- #
-    history = claim["history"]
-
     if not check_claim_frequency(plan, history):
         reasons.append("Claim frequency exceeded")
         decision = "REJECTED"

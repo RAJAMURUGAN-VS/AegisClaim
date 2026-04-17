@@ -1,113 +1,194 @@
-[
-  {
-    "payer_id": "HDFC",
-    "network_hospitals": [
-      {
-        "name": "Apollo Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "Fortis Hospital",
-        "location": "Mumbai"
-      },
-      {
-        "name": "Care Hospital",
-        "location": "Hyderabad"
-      },
-      {
-        "name": "Manipal Hospital",
-        "location": "Bangalore"
-      },
-      {
-        "name": "Global Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "Columbia Asia Hospital",
-        "location": "Bangalore"
-      },
-      {
-        "name": "Max Hospital",
-        "location": "Delhi"
-      },
-      {
-        "name": "Narayana Health",
-        "location": "Bangalore"
-      }
-    ]
-  },
-  {
-    "payer_id": "ICICI",
-    "network_hospitals": [
-      {
-        "name": "Apollo Hospital",
-        "location": "Delhi"
-      },
-      {
-        "name": "Fortis Hospital",
-        "location": "Delhi"
-      },
-      {
-        "name": "Care Hospital",
-        "location": "Hyderabad"
-      },
-      {
-        "name": "Manipal Hospital",
-        "location": "Bangalore"
-      },
-      {
-        "name": "Yashoda Hospital",
-        "location": "Hyderabad"
-      },
-      {
-        "name": "KIMS Hospital",
-        "location": "Hyderabad"
-      },
-      {
-        "name": "Global Hospital",
-        "location": "Mumbai"
-      },
-      {
-        "name": "Max Hospital",
-        "location": "Delhi"
-      }
-    ]
-  },
-  {
-    "payer_id": "STAR",
-    "network_hospitals": [
-      {
-        "name": "Apollo Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "Fortis Hospital",
-        "location": "Mumbai"
-      },
-      {
-        "name": "City Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "XYZ Clinic",
-        "location": "Delhi"
-      },
-      {
-        "name": "MIOT Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "SRM Hospital",
-        "location": "Chennai"
-      },
-      {
-        "name": "Rainbow Hospital",
-        "location": "Hyderabad"
-      },
-      {
-        "name": "Aster Hospital",
-        "location": "Bangalore"
-      }
-    ]
-  }
-]
+ [
+    {                              
+      "id": "HDFC_001",                               
+      "payer_id": "HDFC",
+      "name": "Apollo Hospital",                                          
+      "city": "Chennai",
+      "state": "Tamil Nadu",                                              
+      "pincode": "600001"
+    },
+    {
+      "id": "HDFC_002",
+      "payer_id": "HDFC",
+      "name": "Fortis Hospital",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001"
+    },
+    {
+      "id": "HDFC_003",
+      "payer_id": "HDFC",
+      "name": "Care Hospital",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500001"
+    },
+    {
+      "id": "HDFC_004",
+      "payer_id": "HDFC",
+      "name": "Manipal Hospital",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560001"
+    },
+    {
+      "id": "HDFC_005",
+      "payer_id": "HDFC",
+      "name": "Global Hospital",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600002"
+    },
+    {
+      "id": "HDFC_006",
+      "payer_id": "HDFC",
+      "name": "Columbia Asia Hospital",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560002"
+    },
+    {
+      "id": "HDFC_007",
+      "payer_id": "HDFC",
+      "name": "Max Hospital",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pincode": "110001"
+    },
+    {
+      "id": "HDFC_008",
+      "payer_id": "HDFC",
+      "name": "Narayana Health",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560003"
+    },
+    {
+      "id": "ICICI_001",
+      "payer_id": "ICICI",
+      "name": "Apollo Hospital",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pincode": "110002"
+    },
+    {
+      "id": "ICICI_002",
+      "payer_id": "ICICI",
+      "name": "Fortis Hospital",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pincode": "110003"
+    },
+    {
+      "id": "ICICI_003",
+      "payer_id": "ICICI",
+      "name": "Care Hospital",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500002"
+    },
+    {
+      "id": "ICICI_004",
+      "payer_id": "ICICI",
+      "name": "Manipal Hospital",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560004"
+    },
+    {
+      "id": "ICICI_005",
+      "payer_id": "ICICI",
+      "name": "Yashoda Hospital",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500003"
+    },
+    {
+      "id": "ICICI_006",
+      "payer_id": "ICICI",
+      "name": "KIMS Hospital",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500004"
+    },
+    {
+      "id": "ICICI_007",
+      "payer_id": "ICICI",
+      "name": "Global Hospital",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400002"
+    },
+    {
+      "id": "ICICI_008",
+      "payer_id": "ICICI",
+      "name": "Max Hospital",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pincode": "110004"
+    },
+    {
+      "id": "STAR_001",
+      "payer_id": "STAR",
+      "name": "Apollo Hospital",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600003"
+    },
+    {
+      "id": "STAR_002",
+      "payer_id": "STAR",
+      "name": "Fortis Hospital",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400003"
+    },
+    {
+      "id": "STAR_003",
+      "payer_id": "STAR",
+      "name": "City Hospital",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600004"
+    },
+    {
+      "id": "STAR_004",
+      "payer_id": "STAR",
+      "name": "XYZ Clinic",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pincode": "110005"
+    },
+    {
+      "id": "STAR_005",
+      "payer_id": "STAR",
+      "name": "MIOT Hospital",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600005"
+    },
+    {
+      "id": "STAR_006",
+      "payer_id": "STAR",
+      "name": "SRM Hospital",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600006"
+    },
+    {
+      "id": "STAR_007",
+      "payer_id": "STAR",
+      "name": "Rainbow Hospital",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "pincode": "500005"
+    },
+    {
+      "id": "STAR_008",
+      "payer_id": "STAR",
+      "name": "Aster Hospital",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560005"
+    }
+  ]
