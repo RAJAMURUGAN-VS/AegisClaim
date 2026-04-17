@@ -107,7 +107,7 @@ export const useDashboardStats = (): UseAnalyticsReturn<DashboardStats> => {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<DashboardStats>('/api/v1/analytics/dashboard-stats')
+      const response = await api.get<DashboardStats>('/analytics/dashboard-stats')
       setData(response.data)
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err)
@@ -144,7 +144,7 @@ export const usePAVolumeChart = (): UseAnalyticsReturn<PAVolumeData[]> => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<PAVolumeData[]>('/api/v1/analytics/volume', {
+      const response = await api.get<PAVolumeData[]>('/analytics/volume', {
         params: { from: dateRange.from, to: dateRange.to },
       })
       setData(response.data)
@@ -185,7 +185,7 @@ export const useDecisionDistribution = (): UseAnalyticsReturn<DecisionDistributi
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<DecisionDistribution[]>('/api/v1/analytics/decisions', {
+      const response = await api.get<DecisionDistribution[]>('/analytics/decisions', {
         params: { from: dateRange.from, to: dateRange.to },
       })
       setData(response.data)
@@ -219,7 +219,7 @@ export const useScoreDistribution = (): UseAnalyticsReturn<ScoreDistribution[]> 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<ScoreDistribution[]>('/api/v1/analytics/scores', {
+      const response = await api.get<ScoreDistribution[]>('/analytics/scores', {
         params: { from: dateRange.from, to: dateRange.to },
       })
       setData(response.data)
@@ -255,7 +255,7 @@ export const useAgentPerformance = (): UseAnalyticsReturn<AgentPerformance[]> =>
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<AgentPerformance[]>('/api/v1/analytics/agents', {
+      const response = await api.get<AgentPerformance[]>('/analytics/agents', {
         params: { from: dateRange.from, to: dateRange.to },
       })
       setData(response.data)
@@ -296,7 +296,7 @@ export const useRiskTrend = (): UseAnalyticsReturn<RiskTrend[]> => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await api.get<RiskTrend[]>('/api/v1/analytics/risk-trend', {
+      const response = await api.get<RiskTrend[]>('/analytics/risk-trend', {
         params: { from: dateRange.from, to: dateRange.to },
       })
       setData(response.data)

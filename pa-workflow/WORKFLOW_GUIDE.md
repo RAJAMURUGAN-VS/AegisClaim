@@ -50,7 +50,8 @@ AegisClaim is a digital platform that connects **four types of users**:
 ┌─────────────────┐     submits PA      ┌─────────────────┐
 │   PROVIDERS     │ ───────────────────>│  AEGISCLAIM AI  │
 │  (Doctors/Nurses)│                    │   PLATFORM      │
-└─────────────────┘                     └────────┬────────┘
+└─────────────────┘            
+      └────────┬────────┘
                                                │
                           ┌────────────────────┼────────────────────┐
                           │                    │                    │

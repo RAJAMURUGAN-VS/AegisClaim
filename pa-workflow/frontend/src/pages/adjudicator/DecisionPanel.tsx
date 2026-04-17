@@ -124,7 +124,7 @@ const DecisionPanel: React.FC<DecisionPanelProps> = ({
       setSubmitting(true)
       setError(null)
 
-      await api.post(`/api/v1/pa/${paId}/decision`, pendingDecision)
+      await api.post(`/pa/${paId}/decision`, pendingDecision)
 
       setShowConfirmModal(false)
       setPendingDecision(null)
@@ -150,7 +150,7 @@ const DecisionPanel: React.FC<DecisionPanelProps> = ({
       setSubmitting(true)
       setError(null)
 
-      await api.post(`/api/v1/pa/${paId}/request-info`, {
+      await api.post(`/pa/${paId}/request-info`, {
         notes: infoRequestNotes,
       })
 

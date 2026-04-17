@@ -119,7 +119,7 @@ const PAList: React.FC = () => {
       const response = await api.get<{
         items: PARequest[]
         total: number
-      }>('/api/v1/pa/list', { params })
+      }>('/pa/list', { params })
 
       setPAList(response.data.items)
       setTotalCount(response.data.total)
@@ -164,7 +164,7 @@ const PAList: React.FC = () => {
   const fetchAuditLog = async (paId: string) => {
     try {
       setAuditLoading(true)
-      const response = await api.get<{ auditLog: AuditLogEntry[] }>(`/api/v1/pa/${paId}/audit-log`)
+      const response = await api.get<{ auditLog: AuditLogEntry[] }>(`/pa/${paId}/audit-log`)
       setAuditLog(response.data.auditLog)
     } catch (error) {
       console.error('Failed to fetch audit log:', error)
@@ -226,7 +226,7 @@ const PAList: React.FC = () => {
   // Handle download letter
   const handleDownloadLetter = async (pa: PARequest) => {
     try {
-      const response = await api.get(`/api/v1/pa/${pa.paId}/letter`, {
+      const response = await api.get(`/pa/${pa.paId}/letter`, {
         responseType: 'blob',
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -252,7 +252,7 @@ const PAList: React.FC = () => {
       if (filters.dateTo) params.date_to = filters.dateTo
       if (filters.search) params.search = filters.search
 
-      const response = await api.get('/api/v1/pa/export', {
+      const response = await api.get('/pa/export', {
         params,
         responseType: 'blob',
       })

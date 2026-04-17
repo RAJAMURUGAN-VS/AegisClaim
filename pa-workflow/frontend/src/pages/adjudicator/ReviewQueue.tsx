@@ -75,9 +75,9 @@ const SummaryCard: React.FC<{
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium opacity-80">{title}</p>
-          <p className="text-3xl font-bold mt-2">
+          <div className="text-3xl font-bold mt-2">
             {loading ? <Spinner size="sm" /> : value}
-          </p>
+          </div>
         </div>
         <div className={`p-3 rounded-full bg-white/60 ${iconColors[color]}`}>
           {icon}
@@ -173,7 +173,7 @@ const ReviewQueue: React.FC = () => {
       const response = await api.get<{
         items: ReviewQueueItem[]
         summary: QueueSummary
-      }>('/api/v1/pa/queue/review', { params })
+      }>('/pa/queue/review', { params })
 
       setQueueItems(response.data.items)
       setSummary(response.data.summary)
