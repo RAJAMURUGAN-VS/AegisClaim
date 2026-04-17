@@ -56,6 +56,8 @@ const PublicRoute = () => {
         return <Navigate to="/adjudicator/queue" replace />
       case 'ADMIN':
         return <Navigate to="/admin/dashboard" replace />
+      case 'MEDICAL_DIRECTOR':
+        return <Navigate to="/adjudicator/queue" replace />
       default:
         return <Navigate to="/login" replace />
     }
@@ -81,7 +83,7 @@ function App() {
           </Route>
 
           {/* Adjudicator Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['ADJUDICATOR']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['ADJUDICATOR', 'MEDICAL_DIRECTOR']} />}>
             <Route path="/adjudicator/queue" element={<ReviewQueue />} />
             <Route path="/adjudicator/review/:pa_id" element={<ReviewDetail />} />
           </Route>

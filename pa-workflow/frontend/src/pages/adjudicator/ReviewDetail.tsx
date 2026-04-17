@@ -304,7 +304,7 @@ const ReviewDetail: React.FC = () => {
       try {
         setLoading(true)
         const response = await api.get<ReviewDetailData>(
-          `/api/v1/pa/queue/review/${pa_id}`
+          `/pa/queue/review/${pa_id}`
         )
         setData(response.data)
       } catch (err) {
