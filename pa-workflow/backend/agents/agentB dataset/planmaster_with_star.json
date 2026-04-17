@@ -8,47 +8,95 @@
         {
           "cpt_code": "71020",
           "name": "X-Ray",
-          "max_cost": 5000
+          "max_cost": 5000,
+          "coverage_percentage": 80
         },
         {
           "cpt_code": "71250",
           "name": "CT Scan",
-          "max_cost": 15000
+          "max_cost": 15000,
+          "coverage_percentage": 80
         },
         {
           "cpt_code": "70551",
           "name": "MRI",
-          "max_cost": 20000
+          "max_cost": 20000,
+          "coverage_percentage": 80
         },
         {
           "cpt_code": "80050",
           "name": "Blood Test",
-          "max_cost": 2000
+          "max_cost": 2000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "97110",
           "name": "Physiotherapy",
-          "max_cost": 5000
+          "max_cost": 5000,
+          "coverage_percentage": 80
         },
         {
           "cpt_code": "44950",
           "name": "Appendectomy",
-          "max_cost": 120000
+          "max_cost": 120000,
+          "coverage_percentage": 80
         },
         {
           "cpt_code": "66984",
           "name": "Cataract Surgery",
-          "max_cost": 100000
+          "max_cost": 100000,
+          "coverage_percentage": 90
+        },
+        {
+          "cpt_code": "99213",
+          "name": "Medication",
+          "max_cost": 5000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "10021",
+          "name": "Surgery",
+          "max_cost": 150000,
+          "coverage_percentage": 80
+        },
+        {
+          "cpt_code": "93000",
+          "name": "ECG",
+          "max_cost": 3000,
+          "coverage_percentage": 100
         }
       ],
       "documents_required": [
         "prescription",
-        "lab_report"
+        "lab_report",
+        "scan_report"
       ],
       "policy_rules": {
         "waiting_period_days": 30,
-        "max_claims_per_year": 3
-      }
+        "max_claims_per_year": 3,
+        "pre_existing_waiting_months": 24
+      },
+      "step_therapy": {
+        "required": true,
+        "rules": {
+          "Surgery": [
+            "Physiotherapy",
+            "Medication"
+          ],
+          "Appendectomy": [
+            "CT Scan",
+            "Blood Test"
+          ],
+          "Cataract Surgery": [
+            "Consultation"
+          ]
+        }
+      },
+      "excluded_procedures": [
+        "Cosmetic Surgery",
+        "Experimental Treatment",
+        "Dental Procedures"
+      ]
     },
     {
       "payer_id": "ICICI",
@@ -58,37 +106,96 @@
         {
           "cpt_code": "71020",
           "name": "X-Ray",
-          "max_cost": 4000
+          "max_cost": 4000,
+          "coverage_percentage": 90
         },
         {
           "cpt_code": "71250",
           "name": "CT Scan",
-          "max_cost": 12000
+          "max_cost": 12000,
+          "coverage_percentage": 90
         },
         {
           "cpt_code": "70551",
           "name": "MRI",
-          "max_cost": 18000
+          "max_cost": 18000,
+          "coverage_percentage": 90
         },
         {
           "cpt_code": "97110",
           "name": "Physiotherapy",
-          "max_cost": 4000
+          "max_cost": 4000,
+          "coverage_percentage": 90
         },
         {
           "cpt_code": "44950",
           "name": "Appendectomy",
-          "max_cost": 100000
+          "max_cost": 100000,
+          "coverage_percentage": 90
+        },
+        {
+          "cpt_code": "99213",
+          "name": "Medication",
+          "max_cost": 4000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "92928",
+          "name": "Angioplasty",
+          "max_cost": 250000,
+          "coverage_percentage": 85
+        },
+        {
+          "cpt_code": "80050",
+          "name": "Blood Test",
+          "max_cost": 1500,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "93000",
+          "name": "ECG",
+          "max_cost": 2500,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "10021",
+          "name": "Surgery",
+          "max_cost": 120000,
+          "coverage_percentage": 90
         }
       ],
       "documents_required": [
         "prescription",
-        "lab_report"
+        "lab_report",
+        "scan_report",
+        "discharge_summary"
       ],
       "policy_rules": {
         "waiting_period_days": 30,
-        "max_claims_per_year": 2
-      }
+        "max_claims_per_year": 2,
+        "pre_existing_waiting_months": 36
+      },
+      "step_therapy": {
+        "required": true,
+        "rules": {
+          "Angioplasty": [
+            "ECG",
+            "Blood Test"
+          ],
+          "Surgery": [
+            "CT Scan",
+            "Medication"
+          ],
+          "Appendectomy": [
+            "Blood Test"
+          ]
+        }
+      },
+      "excluded_procedures": [
+        "Cosmetic Surgery",
+        "Bariatric Surgery",
+        "Stem Cell Therapy"
+      ]
     },
     {
       "payer_id": "STAR",
@@ -98,58 +205,123 @@
         {
           "cpt_code": "71020",
           "name": "X-Ray",
-          "max_cost": 6000
+          "max_cost": 6000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "71250",
           "name": "CT Scan",
-          "max_cost": 18000
+          "max_cost": 18000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "70551",
           "name": "MRI",
-          "max_cost": 25000
+          "max_cost": 25000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "80050",
           "name": "Blood Test",
-          "max_cost": 2500
+          "max_cost": 2500,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "97110",
           "name": "Physiotherapy",
-          "max_cost": 6000
+          "max_cost": 6000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "92928",
           "name": "Angioplasty",
-          "max_cost": 350000
+          "max_cost": 350000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "96413",
           "name": "Chemotherapy",
-          "max_cost": 400000
+          "max_cost": 400000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "77300",
+          "name": "Radiation Therapy",
+          "max_cost": 350000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "44950",
           "name": "Appendectomy",
-          "max_cost": 130000
+          "max_cost": 130000,
+          "coverage_percentage": 100
         },
         {
           "cpt_code": "66984",
           "name": "Cataract Surgery",
-          "max_cost": 120000
+          "max_cost": 120000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "99213",
+          "name": "Medication",
+          "max_cost": 6000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "10021",
+          "name": "Surgery",
+          "max_cost": 200000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "93000",
+          "name": "ECG",
+          "max_cost": 3000,
+          "coverage_percentage": 100
+        },
+        {
+          "cpt_code": "74177",
+          "name": "CT Abdomen",
+          "max_cost": 15000,
+          "coverage_percentage": 100
         }
       ],
       "documents_required": [
         "prescription",
         "lab_report",
-        "scan_report"
+        "scan_report",
+        "discharge_summary"
       ],
       "policy_rules": {
         "waiting_period_days": 20,
-        "max_claims_per_year": 4
-      }
+        "max_claims_per_year": 4,
+        "pre_existing_waiting_months": 12
+      },
+      "step_therapy": {
+        "required": true,
+        "rules": {
+          "Chemotherapy": [
+            "CT Scan",
+            "Blood Test"
+          ],
+          "Radiation Therapy": [
+            "CT Scan"
+          ],
+          "Angioplasty": [
+            "ECG",
+            "Blood Test"
+          ],
+          "Surgery": [
+            "Physiotherapy",
+            "Medication"
+          ]
+        }
+      },
+      "excluded_procedures": [
+        "Cosmetic Surgery",
+        "Experimental Treatment"
+      ]
     }
   ]
 }

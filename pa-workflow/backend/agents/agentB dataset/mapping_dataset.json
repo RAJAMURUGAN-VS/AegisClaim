@@ -19,10 +19,10 @@
   },
   {
     "icd10_code": "J00",
-    "diagnosis": "Common Cold",
+    "diagnosis": "Cold",
     "valid_procedures": [
       {
-        "cpt_code": "MED001",
+        "cpt_code": "99213",
         "name": "Medication"
       },
       {
@@ -56,6 +56,32 @@
       {
         "cpt_code": "71020",
         "name": "X-Ray"
+      },
+      {
+        "cpt_code": "93000",
+        "name": "ECG"
+      }
+    ]
+  },
+  {
+    "icd10_code": "I25",
+    "diagnosis": "Heart Disease",
+    "valid_procedures": [
+      {
+        "cpt_code": "92928",
+        "name": "Angioplasty"
+      },
+      {
+        "cpt_code": "93000",
+        "name": "ECG"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      },
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
       }
     ]
   },
@@ -68,8 +94,16 @@
         "name": "Appendectomy"
       },
       {
+        "cpt_code": "44950",
+        "name": "Surgery"
+      },
+      {
         "cpt_code": "74177",
         "name": "CT Abdomen"
+      },
+      {
+        "cpt_code": "71250",
+        "name": "CT Scan"
       }
     ]
   },
@@ -80,6 +114,10 @@
       {
         "cpt_code": "66984",
         "name": "Cataract Surgery"
+      },
+      {
+        "cpt_code": "66984",
+        "name": "Surgery"
       }
     ]
   },
@@ -88,7 +126,65 @@
     "diagnosis": "Diabetes",
     "valid_procedures": [
       {
-        "cpt_code": "MED001",
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "80050",
+        "name": "Blood Test"
+      },
+      {
+        "cpt_code": "99213",
+        "name": "Consultation"
+      }
+    ]
+  },
+  {
+    "icd10_code": "C50",
+    "diagnosis": "Cancer",
+    "valid_procedures": [
+      {
+        "cpt_code": "96413",
+        "name": "Chemotherapy"
+      },
+      {
+        "cpt_code": "77300",
+        "name": "Radiation Therapy"
+      },
+      {
+        "cpt_code": "10021",
+        "name": "Surgery"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      }
+    ]
+  },
+  {
+    "icd10_code": "G43",
+    "diagnosis": "Migraine",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      },
+      {
+        "cpt_code": "70551",
+        "name": "MRI"
+      }
+    ]
+  },
+  {
+    "icd10_code": "R50",
+    "diagnosis": "Fever",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
         "name": "Medication"
       },
       {
@@ -98,13 +194,85 @@
     ]
   },
   {
-  "icd10_code": "C50",
-  "diagnosis": "Cancer",
-  "valid_procedures": [
-    {
-      "cpt_code": "96413",
-      "name": "Chemotherapy"
-    }
-  ]
-}
+    "icd10_code": "R05",
+    "diagnosis": "Cough",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      }
+    ]
+  },
+  {
+    "icd10_code": "I10",
+    "diagnosis": "Hypertension",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "93000",
+        "name": "ECG"
+      },
+      {
+        "cpt_code": "80050",
+        "name": "Blood Test"
+      }
+    ]
+  },
+  {
+    "icd10_code": "N20",
+    "diagnosis": "Kidney Stone",
+    "valid_procedures": [
+      {
+        "cpt_code": "10021",
+        "name": "Surgery"
+      },
+      {
+        "cpt_code": "71250",
+        "name": "CT Scan"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      }
+    ]
+  },
+  {
+    "icd10_code": "J45",
+    "diagnosis": "Asthma",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      }
+    ]
+  },
+  {
+    "icd10_code": "J18",
+    "diagnosis": "Pneumonia",
+    "valid_procedures": [
+      {
+        "cpt_code": "99213",
+        "name": "Medication"
+      },
+      {
+        "cpt_code": "71020",
+        "name": "X-Ray"
+      },
+      {
+        "cpt_code": "80050",
+        "name": "Blood Test"
+      }
+    ]
+  }
 ]
