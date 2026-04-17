@@ -1,120 +1,154 @@
-import json
-import os
+import psycopg2
 from datetime import datetime
 
-# ---------------- LOAD DATASETS ---------------- #
+# ---------------- DB CONNECTION ---------------- #
 
-# Get the directory where this script is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_DIR = os.path.join(BASE_DIR, "agentB dataset")
-
-with open(os.path.join(DATASET_DIR, "mapping_dataset.json")) as f:
-    mapping_data = json.load(f)
-
-with open(os.path.join(DATASET_DIR, "planmaster_with_star.json")) as f:
-    plan_data = json.load(f)["plans"]
-
-with open(os.path.join(DATASET_DIR, "insurance_mock10000.json")) as f:
-    history_data = json.load(f)
-
-with open(os.path.join(DATASET_DIR, "network_hospitals.json")) as f:
-    network_data = json.load(f)
+def get_connection():
+    return psycopg2.connect(
+        "postgresql://neondb_owner:npg_jSTDn08loPFx@ep-flat-dew-ancpuyq8-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require"
+    )
 
 
 # ---------------- HELPER FUNCTIONS ---------------- #
 
 def get_icd_code(diagnosis):
-    for item in mapping_data:
-        if item["diagnosis"].lower() == diagnosis.lower():
-            return item["icd10_code"], item["valid_procedures"]
-    return None, []
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT icd_code, cpt_code FROM mapping WHERE LOWER(diagnosis) = LOWER(%s)",
+        (diagnosis,)
+    )
+
+    rows = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    if not rows:
+        return None, []
+
+    icd_code = rows[0][0]
+    valid_procedures = [{"cpt_code": r[1]} for r in rows]
+
+    return icd_code, valid_procedures
 
 
 def get_plan(payer_name):
-    """Match payer by checking if payer_name starts with plan's payer_id."""
-    payer_lower = payer_name.lower()
-    for plan in plan_data:
-        # Use safer prefix matching instead of substring matching
-        if payer_lower.startswith(plan["payer_id"].lower()):
-            return plan
-    return None
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT plan_id, payer_id, coverage_limit, waiting_period_days, max_claims_per_year "
+        "FROM plans WHERE LOWER(%s) LIKE LOWER(payer_id || '%%')",
+        (payer_name,)
+    )
+
+    plan = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not plan:
+        return None
+
+    return {
+        "plan_id": plan[0],
+        "payer_id": plan[1],
+        "coverage_limit": plan[2],
+        "policy_rules": {
+            "waiting_period_days": plan[3],
+            "max_claims_per_year": plan[4]
+        }
+    }
 
 
-def get_cpt_code(procedure, valid_procedures):
-    for proc in valid_procedures:
-        if proc["name"].lower() == procedure.lower():
-            return proc["cpt_code"]
-    return None
+def get_cpt_code(procedure):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT cpt_code FROM mapping WHERE LOWER(procedure_name) = LOWER(%s)",
+        (procedure,)
+    )
+
+    row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row[0] if row else None
+
+
+def get_procedure_details(plan_id, cpt_code):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT max_cost FROM procedures WHERE plan_id = %s AND cpt_code = %s",
+        (plan_id, cpt_code)
+    )
+
+    row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return row[0] if row else None
 
 
 def check_claim_frequency(policy, history):
     max_claims = policy["policy_rules"]["max_claims_per_year"]
-    return history["previous_claims"] < max_claims
+    return history.get("previous_claims", 0) < max_claims
 
 
 def check_network_hospital(payer_id, hospital_name, location):
-    """Check if hospital is in network. Allows partial name matching (e.g., 'Fortis' matches 'Fortis Hospital')."""
-    payer_lower = payer_id.lower()
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT name, city FROM hospitals WHERE LOWER(payer_id) = LOWER(%s)",
+        (payer_id,)
+    )
+
+    rows = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
     hospital_lower = hospital_name.lower()
     location_lower = location.lower()
 
-    # Iterate over flat network_data structure
-    for hospital in network_data:
-        # Check if hospital's payer_id matches
-        if hospital["payer_id"].lower() in payer_lower:
-            hosp_name_lower = hospital["name"].lower()
-            hosp_location_lower = hospital["city"].lower()
-            # Check for exact match or partial match (hospital name contains the input or vice versa)
-            name_match = (hosp_name_lower == hospital_lower or
-                         hospital_lower in hosp_name_lower or
-                         hosp_name_lower in hospital_lower)
-            location_match = hosp_location_lower == location_lower
+    for name, city in rows:
+        if hospital_lower in name.lower() and city.lower() == location_lower:
+            return "NETWORK"
 
-            if name_match and location_match:
-                return "NETWORK"
-
-    # Check if payer exists in network at all
-    payer_exists = any(h["payer_id"].lower() in payer_lower for h in network_data)
-    if payer_exists:
-        return "NON-NETWORK"
-    return "UNKNOWN"
+    return "NON-NETWORK" if rows else "UNKNOWN"
 
 
-def check_step_therapy(plan, procedure, history):
-    """
-    Check if step therapy requirements are satisfied.
+def check_step_therapy(plan_id, procedure, history):
+    conn = get_connection()
+    cur = conn.cursor()
 
-    Returns:
-        (True, None) if step therapy satisfied or not required
-        (False, required_steps_list) if step therapy not completed
-    """
-    step_therapy = plan.get("step_therapy", {})
+    cur.execute(
+        "SELECT required_prior FROM step_therapy WHERE plan_id = %s AND procedure_name = %s",
+        (plan_id, procedure)
+    )
 
-    # Check if step therapy is required
-    if not step_therapy.get("required", False):
+    rows = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    if not rows:
         return True, None
 
-    rules = step_therapy.get("rules", {})
-    required_steps = rules.get(procedure, [])
+    required_steps = [r[0] for r in rows]
+    past = [p.lower() for p in history.get("past_procedures", [])]
 
-    # If no specific rules for this procedure, step therapy is satisfied
-    if not required_steps:
-        return True, None
+    missing = [r for r in required_steps if r.lower() not in past]
 
-    # Get past procedures from history
-    past_procedures = history.get("past_procedures", [])
-    past_procedures_lower = [p.lower() for p in past_procedures]
-
-    # Check which required prior steps are missing
-    missing_steps = []
-    for step in required_steps:
-        if step.lower() not in past_procedures_lower:
-            missing_steps.append(step)
-
-    if missing_steps:
-        return False, missing_steps
-
-    return True, None
+    return (False, missing) if missing else (True, None)
 
 
 # ---------------- MAIN AGENT B FUNCTION ---------------- #
@@ -130,14 +164,14 @@ def agent_b_policy_check(claim):
 
     # ---------------- 2. DIAGNOSIS → ICD ---------------- #
     diagnosis = claim["medical"]["diagnosis"]
-    icd_code, valid_procedures = get_icd_code(diagnosis)
+    icd_code, _ = get_icd_code(diagnosis)
 
     if not icd_code:
         return {"decision": "REJECTED", "reason": "Unknown diagnosis"}
 
     # ---------------- 3. PROCEDURE VALIDATION ---------------- #
     procedure = claim["medical"]["procedure"]
-    cpt_code = get_cpt_code(procedure, valid_procedures)
+    cpt_code = get_cpt_code(procedure)
 
     if not cpt_code:
         reasons.append("Procedure not valid for diagnosis")
@@ -150,12 +184,12 @@ def agent_b_policy_check(claim):
     if not plan:
         return {"decision": "REJECTED", "reason": "Plan not found"}
 
-    # ---------------- 4b. STEP THERAPY VALIDATION ---------------- #
+    # ---------------- 4b. STEP THERAPY ---------------- #
     history = claim.get("history", {})
-    step_ok, missing_steps = check_step_therapy(plan, procedure, history)
+    step_ok, missing_steps = check_step_therapy(plan["plan_id"], procedure, history)
 
     if not step_ok:
-        reasons.append(f"Step therapy not completed. Required prior: {missing_steps}")
+        reasons.append(f"Step therapy not completed. Required: {missing_steps}")
         if decision != "REJECTED":
             decision = "REVIEW"
 
@@ -164,11 +198,11 @@ def agent_b_policy_check(claim):
     hospital_location = claim.get("hospital", {}).get("location", "")
 
     hospital_status = check_network_hospital(
-        payer, hospital_name, hospital_location
+        plan["payer_id"], hospital_name, hospital_location
     )
 
     if hospital_status == "NON-NETWORK":
-        reasons.append("Hospital is not in insurer network (reimbursement case)")
+        reasons.append("Hospital not in network")
         if decision != "REJECTED":
             decision = "REVIEW"
 
@@ -176,16 +210,9 @@ def agent_b_policy_check(claim):
         return {"decision": "REJECTED", "reason": "Unknown hospital"}
 
     # ---------------- 6. COVERAGE CHECK ---------------- #
-    covered = False
-    max_cost = None
+    max_cost = get_procedure_details(plan["plan_id"], cpt_code)
 
-    for proc in plan.get("procedures", []):
-        if proc.get("cpt_code") == cpt_code:
-            covered = True
-            max_cost = proc.get("max_cost")
-            break  # Exit loop immediately after finding match
-
-    if not covered:
+    if not max_cost:
         reasons.append("Procedure not covered in plan")
         decision = "REJECTED"
 
@@ -198,26 +225,11 @@ def agent_b_policy_check(claim):
             decision = "REVIEW"
 
     # ---------------- 8. DOCUMENT CHECK ---------------- #
-    required_docs = plan.get("documents_required", [])
+    required_docs = ["prescription", "lab_report", "scan_report"]
     user_docs = claim.get("documents", {})
 
-    # Map common variations of document keys
-    doc_key_mapping = {
-        "scan_report": ["scan_report", "scan"],
-        "lab_report": ["lab_report", "lab"],
-        "prescription": ["prescription"],
-        "discharge_summary": ["discharge_summary", "discharge"]
-    }
-
     for doc in required_docs:
-        doc_present = False
-        # Check all possible key variations for this document type
-        possible_keys = doc_key_mapping.get(doc, [doc])
-        for key in possible_keys:
-            if user_docs.get(key, False):
-                doc_present = True
-                break
-        if not doc_present:
+        if not user_docs.get(doc, False):
             reasons.append(f"Missing document: {doc}")
             if decision != "REJECTED":
                 decision = "REVIEW"
@@ -232,23 +244,41 @@ def agent_b_policy_check(claim):
         "decision": decision,
         "icd_code": icd_code,
         "cpt_code": cpt_code,
-        "hospital_status": hospital_status if hospital_status else "N/A",
+        "hospital_status": hospital_status,
         "reasons": reasons if reasons else ["All checks passed"]
     }
 
 
 # ---------------- TEST BLOCK ---------------- #
+
 if __name__ == "__main__":
-    # Test with sample claims from the dataset
-    print("Testing Agent B Policy Check...\n")
 
-    for i, claim in enumerate(history_data[:3]):  # Test first 3 claims
-        print(f"Claim {claim['claim_id']}: {claim['patient']['name']}")
-        print(f"  Insurance: {claim['policy']['insurance_company']}")
-        print(f"  Diagnosis: {claim['medical']['diagnosis']}")
-        print(f"  Procedure: {claim['medical']['procedure']}")
-        print(f"  Hospital: {claim['hospital']['name']}, {claim['hospital']['location']}")
+    test_claim = {
+        "policy": {
+            "active": True,
+            "insurance_company": "HDFC"
+        },
+        "medical": {
+            "diagnosis": "Fracture",
+            "procedure": "Surgery"
+        },
+        "hospital": {
+            "name": "Apollo Hospital",
+            "location": "Chennai"
+        },
+        "financial": {
+            "estimated_cost": 1000000
+        },
+        "documents": {
+            "prescription": True,
+            "lab_report": True,
+            "scan_report": True
+        },
+        "history": {
+            "previous_claims": 1,
+            "past_procedures": ["Physiotherapy", "Medication"]
+        }
+    }
 
-        result = agent_b_policy_check(claim)
-        print(f"  Result: {result}")
-        print("-" * 50)
+    result = agent_b_policy_check(test_claim)
+    print("\n RESULT:\n", result)
