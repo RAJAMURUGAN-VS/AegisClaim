@@ -30,3 +30,6 @@ export type { SkeletonProps, SkeletonCardProps, SkeletonKpiCardProps, SkeletonTa
 
 export { TagInput } from './TagInput'
 export type { Tag, TagInputProps } from './TagInput'
+
+export { Select } from './Select'
+export type { SelectProps, SelectOption } from './Select'

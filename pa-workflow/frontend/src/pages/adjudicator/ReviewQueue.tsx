@@ -15,6 +15,7 @@ import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Table, Column } from '../../components/common/Table'
 import { Spinner } from '../../components/common/Spinner'
+import { Select } from '../../components/common/Select'
 import api from '../../services/api'
 
 // Types for review queue items
@@ -42,6 +43,7 @@ interface QueueSummary {
 }
 
 interface QueueFilters {
+  status: 'ALL' | 'PENDING' | 'APPROVED' | 'DENIED' | 'ESCALATED'
   riskFlag: 'ALL' | 'MEDIUM' | 'HIGH'
   dateFrom: string
   dateTo: string
@@ -152,6 +154,7 @@ const ReviewQueue: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [filters, setFilters] = useState<QueueFilters>({
+    status: 'ALL',
     riskFlag: 'ALL',
     dateFrom: '',
     dateTo: '',
@@ -208,6 +211,7 @@ const ReviewQueue: React.FC = () => {
 
   const handleClearFilters = () => {
     setFilters({
+      status: 'ALL',
       riskFlag: 'ALL',
       dateFrom: '',
       dateTo: '',
@@ -330,76 +334,93 @@ const ReviewQueue: React.FC = () => {
         />
       </div>
 
-      {/* Filter Bar */}
+      {/* Filter Bar - Responsive Design */}
       <Card>
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+          {/* Decision Status Filter */}
+          <div className="w-full lg:w-44">
+            <Select
+              label="Decision Status"
+              value={filters.status}
+              onChange={(value) => handleFilterChange('status', value)}
+              options={[
+                { value: 'ALL', label: 'All Statuses' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'APPROVED', label: 'Approved' },
+                { value: 'DENIED', label: 'Denied' },
+                { value: 'ESCALATED', label: 'Escalated' },
+              ]}
+            />
+          </div>
+
           {/* Risk Flag Filter */}
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Risk Flag
-            </label>
-            <select
+          <div className="w-full lg:w-44">
+            <Select
+              label="Risk Flag"
               value={filters.riskFlag}
-              onChange={(e) =>
-                handleFilterChange('riskFlag', e.target.value)
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="ALL">All Risk Levels</option>
-              <option value="MEDIUM">Medium Risk</option>
-              <option value="HIGH">High Risk</option>
-            </select>
+              onChange={(value) => handleFilterChange('riskFlag', value)}
+              options={[
+                { value: 'ALL', label: 'All Risk Levels' },
+                { value: 'MEDIUM', label: 'Medium Risk' },
+                { value: 'HIGH', label: 'High Risk' },
+              ]}
+            />
           </div>
 
           {/* Date Range */}
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              From Date
-            </label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) =>
-                handleFilterChange('dateFrom', e.target.value)
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+                From Date
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                  focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                  hover:border-neutral-300 transition-all duration-150"
+              />
+            </div>
 
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              To Date
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                  focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                  hover:border-neutral-300 transition-all duration-150"
+              />
+            </div>
           </div>
 
           {/* Patient ID Search */}
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="w-full lg:w-64">
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
               Search by Patient ID
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Enter patient ID..."
                 value={filters.patientId}
-                onChange={(e) =>
-                  handleFilterChange('patientId', e.target.value)
-                }
+                onChange={(e) => handleFilterChange('patientId', e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                  placeholder:text-neutral-400
+                  focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                  hover:border-neutral-300 transition-all duration-150"
               />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             <Button variant="secondary" icon={Filter} onClick={handleSearch}>
               Filter
             </Button>

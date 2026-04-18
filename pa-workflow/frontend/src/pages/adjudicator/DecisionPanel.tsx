@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { CheckCircle, XCircle, AlertTriangle, Info, FileText } from 'lucide-react'
 import { Button } from '../../components/common/Button'
 import { Modal } from '../../components/common/Modal'
+import { Select } from '../../components/common/Select'
 import api from '../../services/api'
 
 export interface DecisionData {
@@ -304,26 +305,17 @@ const DecisionPanel: React.FC<DecisionPanelProps> = ({
             <strong>{patientName}</strong>.
           </p>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Denial Reason Code <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={denialReasonCode}
-              onChange={(e) => {
-                setDenialReasonCode(e.target.value)
-                setError(null)
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="">Select a reason...</option>
-              {DENIAL_REASON_CODES.map((reason) => (
-                <option key={reason.code} value={reason.code}>
-                  {reason.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Denial Reason Code"
+            value={denialReasonCode}
+            onChange={(value) => {
+              setDenialReasonCode(value)
+              setError(null)
+            }}
+            options={DENIAL_REASON_CODES.map((r) => ({ value: r.code, label: r.label }))}
+            placeholder="Select a reason..."
+            required
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -239,38 +239,94 @@ const PAStatus: React.FC = () => {
             </div>
           </div>
 
-          {/* Progress Timeline */}
-          <div className="relative">
-            <div className="absolute left-0 right-0 top-1/2 h-1 bg-gray-200 -translate-y-1/2" />
+          {/* Progress Pipeline - Desktop */}
+          <div className="hidden md:block relative">
+            <div className="absolute left-0 right-0 top-1/2 h-2 bg-neutral-100 -translate-y-1/2 rounded-full" />
             <div
-              className="absolute left-0 top-1/2 h-1 bg-primary -translate-y-1/2 transition-all duration-500"
+              className="absolute left-0 top-1/2 h-2 bg-gradient-to-r from-primary-600 via-primary-500 to-success-500 -translate-y-1/2 transition-all duration-700 rounded-full"
               style={{ width: `${(timelineSteps.filter((s) => s.completed).length / 4) * 100}%` }}
             />
             <div className="relative flex justify-between">
-              {timelineSteps.map((step) => (
-                <div key={step.id} className="flex flex-col items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
-                      step.completed
-                        ? 'bg-primary border-primary text-white'
-                        : 'bg-white border-gray-300 text-gray-400'
-                    }`}
-                  >
-                    {step.completed ? (
-                      <CheckCircle className="w-4 h-4" />
-                    ) : (
-                      <div className="w-2 h-2 rounded-full bg-gray-300" />
-                    )}
+              {timelineSteps.map((step, index) => {
+                const isLast = index === timelineSteps.length - 1
+                const isCompleted = step.completed
+                const isCurrent = isCompleted && !timelineSteps[index + 1]?.completed
+
+                return (
+                  <div key={step.id} className="flex flex-col items-center group">
+                    <div
+                      className={`
+                        w-12 h-12 rounded-full flex items-center justify-center 
+                        transition-all duration-300 shadow-sm
+                        ${isCompleted
+                          ? isLast
+                            ? 'bg-success-500 text-white shadow-success-500/30'
+                            : isCurrent
+                              ? 'bg-primary-500 text-white shadow-primary-500/30 ring-4 ring-primary-100'
+                              : 'bg-primary-500 text-white'
+                          : 'bg-white border-2 border-neutral-200 text-neutral-400'
+                        }
+                      `}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <div className="w-3 h-3 rounded-full bg-neutral-300" />
+                      )}
+                    </div>
+                    <div className="mt-3 text-center">
+                      <span
+                        className={`block text-sm font-semibold ${
+                          isCompleted ? 'text-neutral-900' : 'text-neutral-400'
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                      {isCompleted && (
+                        <span className="text-xs text-neutral-400 mt-0.5 block">Completed</span>
+                      )}
+                    </div>
                   </div>
-                  <span
-                    className={`mt-2 text-sm font-medium ${
-                      step.completed ? 'text-gray-900' : 'text-gray-500'
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Progress Pipeline - Mobile */}
+          <div className="md:hidden">
+            <div className="relative pl-4">
+              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-200">
+                <div
+                  className="absolute left-0 top-0 w-full bg-gradient-to-b from-primary-500 to-success-500 transition-all duration-700"
+                  style={{ height: `${(timelineSteps.filter((s) => s.completed).length / 4) * 100}%` }}
+                />
+              </div>
+              <div className="space-y-6">
+                {timelineSteps.map((step) => (
+                  <div key={step.id} className="flex items-center">
+                    <div
+                      className={`
+                        w-5 h-5 rounded-full flex items-center justify-center z-10
+                        transition-all duration-300
+                        ${step.completed
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-white border-2 border-neutral-200'
+                        }
+                      `}
+                    >
+                      {step.completed && <CheckCircle className="w-3 h-3" />}
+                    </div>
+                    <span
+                      className={`
+                        ml-4 text-sm font-medium
+                        ${step.completed ? 'text-neutral-900' : 'text-neutral-400'}
+                      `}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

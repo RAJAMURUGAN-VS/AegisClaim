@@ -20,6 +20,7 @@ import { useNotifications } from '../../hooks/useNotifications'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Input } from '../../components/common/Input'
+import { Select } from '../../components/common/Select'
 
 // Validation schemas for each step
 const step1Schema = z.object({
@@ -290,44 +291,111 @@ const PASubmissionForm: React.FC = () => {
     }
   }
 
-  const renderStepIndicator = () => (
-    <div className="mb-8">
-      <div className="flex items-center justify-between relative">
-        <div className="absolute left-0 right-0 top-1/2 h-1 bg-gray-200 -translate-y-1/2" />
-        <div
-          className="absolute left-0 top-1/2 h-1 bg-primary -translate-y-1/2 transition-all duration-300"
-          style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
-        />
-        {[1, 2, 3].map((step) => (
-          <div
-            key={step}
-            className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${
-              step < currentStep
-                ? 'bg-success text-white'
-                : step === currentStep
-                  ? 'bg-primary text-white'
-                  : 'bg-white border-2 border-gray-300 text-gray-500'
-            }`}
-          >
-            {step < currentStep ? <CheckCircle2 className="w-5 h-5" /> : step}
+  const renderStepIndicator = () => {
+    const steps = [
+      { id: 1, label: 'Patient & Insurance', description: 'Basic information' },
+      { id: 2, label: 'Clinical Info', description: 'Diagnosis & codes' },
+      { id: 3, label: 'Documents', description: 'Upload records' },
+    ]
+
+    return (
+      <div className="mb-10 md:mb-24 lg:mb-28">
+        {/* Desktop: Horizontal Stepper */}
+        <div className="hidden md:block">
+          <div className="flex items-center justify-between relative">
+            <div className="absolute left-0 right-0 top-1/2 h-1 bg-neutral-200 -translate-y-1/2 rounded-full" />
+            <div
+              className="absolute left-0 top-1/2 h-1 bg-gradient-to-r from-primary-600 to-primary-500 -translate-y-1/2 transition-all duration-500 rounded-full"
+              style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+            />
+            {steps.map((step, index) => {
+              const isCompleted = step.id < currentStep
+              const isCurrent = step.id === currentStep
+
+              return (
+                <div key={step.id} className="relative z-10 flex flex-col items-center">
+                  <div
+                    className={`
+                      w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm
+                      transition-all duration-300 shadow-sm
+                      ${isCompleted
+                        ? 'bg-success-500 text-white shadow-success-500/30'
+                        : isCurrent
+                          ? 'bg-white border-2 border-primary-500 text-primary-600 shadow-md shadow-primary-500/20 scale-110'
+                          : 'bg-white border-2 border-neutral-200 text-neutral-400'
+                      }
+                    `}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      step.id
+                    )}
+                  </div>
+                  <div className="absolute top-14 w-32 text-center">
+                    <p className={`text-sm font-semibold ${isCurrent || isCompleted ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                      {step.label}
+                    </p>
+                    <p className="text-xs text-neutral-400 mt-0.5">{step.description}</p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        ))}
+        </div>
+
+        {/* Mobile: Vertical Stepper */}
+        <div className="md:hidden">
+          <div className="space-y-4">
+            {steps.map((step, index) => {
+              const isCompleted = step.id < currentStep
+              const isCurrent = step.id === currentStep
+
+              return (
+                <div key={step.id} className="flex items-start">
+                  <div className="flex flex-col items-center mr-4">
+                    <div
+                      className={`
+                        w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
+                        transition-all duration-300
+                        ${isCompleted
+                          ? 'bg-success-500 text-white'
+                          : isCurrent
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-neutral-200 text-neutral-400'
+                        }
+                      `}
+                    >
+                      {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : step.id}
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`w-0.5 h-6 mt-1 rounded-full ${isCompleted ? 'bg-success-500' : 'bg-neutral-200'
+                          }`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <p className={`text-sm font-semibold ${isCurrent || isCompleted ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                      {step.label}
+                    </p>
+                    <p className="text-xs text-neutral-400">{step.description}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
-      <div className="flex justify-between mt-2 text-sm">
-        <span className={currentStep >= 1 ? 'text-primary font-medium' : 'text-gray-500'}>
-          Patient & Insurance
-        </span>
-        <span className={currentStep >= 2 ? 'text-primary font-medium' : 'text-gray-500'}>
-          Clinical Info
-        </span>
-        <span className={currentStep >= 3 ? 'text-primary font-medium' : 'text-gray-500'}>Documents</span>
-      </div>
-    </div>
-  )
+    )
+  }
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Step 1: Patient & Insurance Details</h3>
+    <div className="space-y-6 relative z-10 bg-white">
+      <div className="border-b border-neutral-200 pb-4 bg-white">
+        <h3 className="text-xl font-semibold text-neutral-900">Step 1: Patient & Insurance Details</h3>
+        <p className="text-sm text-neutral-500 mt-1">Enter patient member ID, insurance information, and service date</p>
+      </div>
 
       <Controller
         name="patientMemberId"
@@ -343,37 +411,24 @@ const PASubmissionForm: React.FC = () => {
         )}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Controller
           name="payerId"
           control={control}
           render={({ field }) => (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Insurance Payer <span className="text-danger">*</span>
-              </label>
-              <select
-                {...field}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                  errors.payerId ? 'border-danger' : 'border-gray-300'
-                }`}
-                disabled={isLoadingPayers}
-              >
-                <option value="">Select a payer</option>
-                {payers?.map((payer) => (
-                  <option key={payer.id} value={payer.id}>
-                    {payer.name}
-                  </option>
-                ))}
-              </select>
-              {isLoadingPayers && (
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading payers...
-                </div>
-              )}
-              {errors.payerId && <p className="mt-1 text-sm text-danger">{errors.payerId.message}</p>}
-            </div>
+            <Select
+              label="Insurance Payer"
+              value={field.value}
+              onChange={(value) => {
+                field.onChange(value)
+                setValue('planId', '')
+              }}
+              options={payers?.map((p) => ({ value: p.id, label: p.name })) || []}
+              placeholder={isLoadingPayers ? 'Loading payers...' : 'Select a payer'}
+              error={errors.payerId?.message}
+              loading={isLoadingPayers}
+              required
+            />
           )}
         />
 
@@ -381,32 +436,17 @@ const PASubmissionForm: React.FC = () => {
           name="planId"
           control={control}
           render={({ field }) => (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Insurance Plan <span className="text-danger">*</span>
-              </label>
-              <select
-                {...field}
-                disabled={!selectedPayerId || isLoadingPlans}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                  errors.planId ? 'border-danger' : 'border-gray-300'
-                } ${!selectedPayerId || isLoadingPlans ? 'bg-gray-100' : ''}`}
-              >
-                <option value="">{selectedPayerId ? 'Select a plan' : 'Select payer first'}</option>
-                {plans?.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name}
-                  </option>
-                ))}
-              </select>
-              {isLoadingPlans && (
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading plans...
-                </div>
-              )}
-              {errors.planId && <p className="mt-1 text-sm text-danger">{errors.planId.message}</p>}
-            </div>
+            <Select
+              label="Insurance Plan"
+              value={field.value}
+              onChange={field.onChange}
+              options={plans?.map((p) => ({ value: p.id, label: p.name })) || []}
+              placeholder={!selectedPayerId ? 'Select payer first' : isLoadingPlans ? 'Loading plans...' : 'Select a plan'}
+              error={errors.planId?.message}
+              loading={isLoadingPlans}
+              disabled={!selectedPayerId}
+              required
+            />
           )}
         />
       </div>
@@ -431,21 +471,29 @@ const PASubmissionForm: React.FC = () => {
         control={control}
         render={({ field }) => (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date of Service <span className="text-danger">*</span>
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+              Date of Service <span className="text-danger-500">*</span>
             </label>
             <div className="relative">
               <input
                 {...field}
                 type="date"
                 max={new Date().toISOString().split('T')[0]}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                  errors.dateOfService ? 'border-danger' : 'border-gray-300'
-                }`}
+                className={`
+                  w-full px-3 py-2.5 bg-white border rounded-lg text-sm text-neutral-900
+                  focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                  hover:border-neutral-300 transition-all duration-150
+                  ${errors.dateOfService ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/25' : 'border-neutral-200'}
+                `}
               />
-              <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" />
+              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" />
             </div>
-            {errors.dateOfService && <p className="mt-1 text-sm text-danger">{errors.dateOfService.message}</p>}
+            {errors.dateOfService && (
+              <p className="mt-1.5 text-sm text-danger-600 flex items-center">
+                <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+                {errors.dateOfService.message}
+              </p>
+            )}
           </div>
         )}
       />
@@ -453,22 +501,25 @@ const PASubmissionForm: React.FC = () => {
   )
 
   const renderStep2 = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Step 2: Clinical Information</h3>
+    <div className="space-y-6 relative z-10 bg-white">
+      <div className="border-b border-neutral-200 pb-4 bg-white">
+        <h3 className="text-xl font-semibold text-neutral-900">Step 2: Clinical Information</h3>
+        <p className="text-sm text-neutral-500 mt-1">Enter diagnosis codes and procedure codes</p>
+      </div>
 
       {/* ICD-10 Codes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          ICD-10 Codes <span className="text-danger">*</span>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+          ICD-10 Codes <span className="text-danger-500">*</span>
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
           {icd10Codes.map((code) => (
             <span
               key={code}
-              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+              className="inline-flex items-center px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm border border-primary-200"
             >
               {code}
-              <button type="button" onClick={() => removeIcdCode(code)} className="ml-2 hover:text-blue-900">
+              <button type="button" onClick={() => removeIcdCode(code)} className="ml-2 hover:text-primary-900 transition-colors">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -486,28 +537,36 @@ const PASubmissionForm: React.FC = () => {
               }
             }}
             placeholder="Type code and press Enter"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+              placeholder:text-neutral-400
+              focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+              hover:border-neutral-300 transition-all duration-150"
           />
           <Button type="button" variant="secondary" onClick={addIcdCode}>
             Add
           </Button>
         </div>
-        {errors.icd10Codes && <p className="mt-1 text-sm text-danger">{errors.icd10Codes.message}</p>}
+        {errors.icd10Codes && (
+          <p className="mt-1.5 text-sm text-danger-600 flex items-center">
+            <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+            {errors.icd10Codes.message}
+          </p>
+        )}
       </div>
 
       {/* CPT Codes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          CPT Codes <span className="text-danger">*</span>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+          CPT Codes <span className="text-danger-500">*</span>
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
           {cptCodes.map((code) => (
             <span
               key={code}
-              className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+              className="inline-flex items-center px-3 py-1 bg-success-100 text-success-700 rounded-full text-sm border border-success-200"
             >
               {code}
-              <button type="button" onClick={() => removeCptCode(code)} className="ml-2 hover:text-green-900">
+              <button type="button" onClick={() => removeCptCode(code)} className="ml-2 hover:text-success-900 transition-colors">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -525,13 +584,21 @@ const PASubmissionForm: React.FC = () => {
               }
             }}
             placeholder="Type code and press Enter"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+              placeholder:text-neutral-400
+              focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+              hover:border-neutral-300 transition-all duration-150"
           />
           <Button type="button" variant="secondary" onClick={addCptCode}>
             Add
           </Button>
         </div>
-        {errors.cptCodes && <p className="mt-1 text-sm text-danger">{errors.cptCodes.message}</p>}
+        {errors.cptCodes && (
+          <p className="mt-1.5 text-sm text-danger-600 flex items-center">
+            <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+            {errors.cptCodes.message}
+          </p>
+        )}
       </div>
 
       <Controller
@@ -539,11 +606,16 @@ const PASubmissionForm: React.FC = () => {
         control={control}
         render={({ field }) => (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Prior Treatment History</label>
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+              Prior Treatment History
+            </label>
             <textarea
               {...field}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150 resize-none"
               placeholder="Describe any prior treatments..."
             />
           </div>
@@ -569,13 +641,16 @@ const PASubmissionForm: React.FC = () => {
   )
 
   const renderStep3 = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Step 3: Document Upload</h3>
+    <div className="space-y-6 relative z-10 bg-white">
+      <div className="border-b border-neutral-200 pb-4 bg-white">
+        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Supporting Documents</h3>
+        <p className="text-sm text-neutral-500 mt-1">Upload clinical notes and supporting documents</p>
+      </div>
 
       {/* Document Requirements Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start">
-          <Info className="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+          <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
           <div>
             <h4 className="font-medium text-blue-900">Document Requirements</h4>
             <div className="mt-2 space-y-1 text-sm">
@@ -596,14 +671,18 @@ const PASubmissionForm: React.FC = () => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className={`
+          border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200
+          ${isDragging
+            ? 'border-primary-500 bg-primary-50/50'
+            : 'border-neutral-300 hover:border-primary-400 hover:bg-neutral-50'
+          }
+        `}
       >
-        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-700 font-medium mb-2">Drag and drop files here</p>
-        <p className="text-gray-500 text-sm mb-4">or</p>
-        <label className="cursor-pointer">
+        <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+        <p className="text-neutral-700 font-semibold mb-2">Drag and drop files here</p>
+        <p className="text-neutral-500 text-sm mb-4">or click to browse</p>
+        <label className="cursor-pointer inline-flex">
           <input
             type="file"
             multiple
@@ -611,36 +690,36 @@ const PASubmissionForm: React.FC = () => {
             onChange={handleFileSelect}
             className="hidden"
           />
-          <span className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">
+          <span className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
             Browse Files
           </span>
         </label>
       </div>
 
       {errors.documents && (
-        <div className="flex items-center text-danger">
-          <AlertCircle className="w-4 h-4 mr-2" />
+        <div className="flex items-center text-danger-600 bg-danger-50 rounded-lg p-3">
+          <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
           <span className="text-sm">{errors.documents.message}</span>
         </div>
       )}
 
       {/* Uploaded Files List */}
       {documents.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-medium text-gray-900">Uploaded Files ({documents.length})</h4>
+        <div className="space-y-3">
+          <h4 className="font-medium text-neutral-900">Uploaded Files ({documents.length})</h4>
           {documents.map((file, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center">
-                <FileText className="w-5 h-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                  <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+            <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <div className="flex items-center min-w-0">
+                <FileText className="w-5 h-5 text-neutral-400 mr-3 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-neutral-900 truncate">{file.name}</p>
+                  <p className="text-xs text-neutral-500">{formatFileSize(file.size)}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => removeFile(index)}
-                className="p-1 text-gray-400 hover:text-danger transition-colors"
+                className="p-1.5 text-neutral-400 hover:text-danger-500 hover:bg-danger-50 rounded-md transition-colors flex-shrink-0 ml-2"
               >
                 <X className="w-4 h-4" />
               </button>

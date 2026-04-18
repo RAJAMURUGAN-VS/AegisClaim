@@ -61,7 +61,10 @@ export default {
         card: '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
         elevated: '0 4px 24px rgba(0,0,0,0.12)',
         'focus-ring': '0 0 0 3px rgba(46,95,163,0.25)',
-      }
+      },
+      transitionTimingFunction: {
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
     },
   },
   plugins: [
