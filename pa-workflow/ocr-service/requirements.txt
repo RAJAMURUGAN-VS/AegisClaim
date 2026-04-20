@@ -1,0 +1,10 @@
+flask
+flask-cors
+paddlepaddle
+paddleocr
+pdf2image
+python-docx
+Pillow
+openpyxl
+python-pptx
+numpy

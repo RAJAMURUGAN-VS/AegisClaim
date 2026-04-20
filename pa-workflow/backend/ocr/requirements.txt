@@ -1,9 +1,0 @@
-paddlepaddle
-paddleocr
-flask
-flask-cors
-pdf2image
-python-docx
-Pillow
-openpyxl
-python-pptx

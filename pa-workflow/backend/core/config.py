@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     # AI/Business Logic Settings
     OCR_CONFIDENCE_THRESHOLD: float = 0.7
+    OCR_SERVICE_URL: str = "http://127.0.0.1:5001/ocr"
+    OCR_SERVICE_TIMEOUT: float = 120.0
     SCORE_AUTO_APPROVE_THRESHOLD: int = 85
     SCORE_HUMAN_REVIEW_MIN_THRESHOLD: int = 60
 

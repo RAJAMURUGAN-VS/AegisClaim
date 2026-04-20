@@ -5,6 +5,7 @@ This project is an implementation of the AI-Powered Prior Authorization system a
 ## Tech Stack
 - **Frontend**: React + TypeScript + Tailwind CSS + Vite
 - **Backend**: Python 3.11 + FastAPI
+- **OCR Microservice**: Python 3.11 + Flask + PaddleOCR
 - **AI Orchestration**: LangGraph
 - **Databases**: PostgreSQL, MongoDB
 - **OCR**: AWS Textract
@@ -26,6 +27,10 @@ pa-workflow/
 │   ├── docker-compose.yml  # Docker services definition
 │   ├── requirements.txt    # Python dependencies
 │   └── README.md       # Backend-specific documentation
+├── ocr-service/        # Standalone OCR API service
+│   ├── app.py          # OCR API endpoint (/ocr)
+│   ├── requirements.txt
+│   └── README.md
 ├── frontend/           # React Frontend
 │   ├── src/            # Source code (components, pages, hooks)
 │   ├── package.json    # Node dependencies
@@ -52,6 +57,22 @@ pa-workflow/
     uvicorn api.main:app --reload --port 8000
     ```
 5.  The API will be available at `http://localhost:8000`
+
+### OCR Service Setup
+
+1.  **Navigate to OCR service folder**
+    ```bash
+    cd ocr-service
+    ```
+2.  **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  **Start OCR service**:
+    ```bash
+    python app.py
+    ```
+4.  OCR API will be available at `http://localhost:5001/ocr`
 
 ### Frontend Setup
 

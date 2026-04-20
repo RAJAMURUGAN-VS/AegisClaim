@@ -1,62 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>OCR Upload</title>
-</head>
-<body>
-
-<h2>Upload File for OCR</h2>
-
-<input type="file" id="fileInput" />
-<button onclick="uploadFile()">Extract Text</button>
-
-<h3>Result:</h3>
-<pre id="result"></pre>
-
-<script>
-async function uploadFile() {
-
-    const file = document.getElementById("fileInput").files[0];
-
-    if (!file) {
-        alert("Please select a file first");
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-        const response = await fetch("http://localhost:3000/api/ocr", {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await response.json();
-
-        console.log("Response:", data);
-
-        if (data.success) {
-
-            // ✅ FIX: show line-by-line instead of one line
-            const formattedText = data.lines
-                .map(line => line.text)
-                .join("\n");
-
-            document.getElementById("result").textContent = formattedText;
-
-        } else {
-            document.getElementById("result").textContent =
-                "Error: " + data.error;
-        }
-
-    } catch (err) {
-        console.error(err);
-        document.getElementById("result").textContent =
-            "Request failed: " + err.message;
-    }
-}
-</script>
-
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AegisClaim</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

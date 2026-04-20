@@ -1,45 +1,56 @@
 import logging
+from pathlib import Path
 from typing import Tuple
 
-from PIL import Image
-import pytesseract
-from pdf2image import convert_from_path
+import httpx
+
+from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def _confidence_from_tesseract_data(data: dict) -> float:
-    conf_values = []
-    for raw in data.get("conf", []):
-        try:
-            value = float(raw)
-            if value >= 0:
-                conf_values.append(value)
-        except (TypeError, ValueError):
-            continue
-    if not conf_values:
-        return 0.0
-    return sum(conf_values) / (len(conf_values) * 100.0)
+
+def _call_ocr_service(document_path: str) -> dict:
+    path = Path(document_path)
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"Document not found: {document_path}")
+
+    with path.open("rb") as file_handle:
+        files = {"file": (path.name, file_handle, "application/octet-stream")}
+        response = httpx.post(
+            settings.OCR_SERVICE_URL,
+            files=files,
+            timeout=settings.OCR_SERVICE_TIMEOUT,
+        )
+
+    response.raise_for_status()
+    payload = response.json()
+
+    if not payload.get("success", False):
+        raise RuntimeError(payload.get("error", "OCR service returned unsuccessful response"))
+
+    return payload
+
+
+def _extract_text_confidence(payload: dict) -> Tuple[str, float]:
+    lines = payload.get("lines", [])
+    text = "\n".join([line.get("text", "") for line in lines if line.get("text")])
+
+    confidences = [float(line.get("confidence", 0.0)) for line in lines if line.get("confidence") is not None]
+    avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+    return text, avg_confidence
 
 
 def extract_text_from_image(image_path: str) -> Tuple[str, float]:
-    """Extract text and confidence from an image using Tesseract."""
-    image = Image.open(image_path)
-    text = pytesseract.image_to_string(image)
-    data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
-    confidence = _confidence_from_tesseract_data(data)
-    return text, confidence
+    """Extract text and confidence by calling the OCR microservice."""
+    payload = _call_ocr_service(image_path)
+    return _extract_text_confidence(payload)
 
 
 def extract_text_from_pdf(pdf_path: str) -> Tuple[str, float, int]:
-    """Extract text from each PDF page by converting pages to images."""
-    pages = convert_from_path(pdf_path)
-    texts = []
-    confidences = []
-    for page in pages:
-        text = pytesseract.image_to_string(page)
-        data = pytesseract.image_to_data(page, output_type=pytesseract.Output.DICT)
-        texts.append(text)
-        confidences.append(_confidence_from_tesseract_data(data))
-    avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
-    return "\n".join(texts), avg_conf, len(pages)
+    """Extract text and confidence by calling the OCR microservice."""
+    payload = _call_ocr_service(pdf_path)
+    text, avg_confidence = _extract_text_confidence(payload)
+    page_count = int(payload.get("page_count", 1))
+    return text, avg_confidence, page_count
