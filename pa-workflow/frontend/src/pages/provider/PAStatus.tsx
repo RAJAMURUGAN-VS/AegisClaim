@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -32,6 +32,7 @@ const PAStatus: React.FC = () => {
   const [showAppealModal, setShowAppealModal] = useState(false)
   const [appealReason, setAppealReason] = useState('')
   const [copied, setCopied] = useState(false)
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0)
 
   const { data: paData, isLoading, error, refetch } = usePAStatus(pa_id)
   const submitAppeal = useSubmitAppeal()
@@ -187,6 +188,68 @@ const PAStatus: React.FC = () => {
     }
   }
 
+  const formatDateSafe = (value: string | undefined | null, pattern: string, fallback = 'N/A') => {
+    if (!value) return fallback
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return fallback
+    return format(date, pattern)
+  }
+
+  useEffect(() => {
+    const ocrGeneratingStatuses = ['SUBMITTED', 'PROCESSING', 'AGENT_PROCESSING', 'SCORING', 'IN_REVIEW']
+    if (!paData || !ocrGeneratingStatuses.includes(paData.status)) {
+      return undefined
+    }
+
+    const loadingSteps = [
+      'Uploading document...',
+      'Detecting document type...',
+      'Running OCR extraction...',
+      'Cleaning and structuring text...',
+      'Building parsed JSON...',
+      'Saving results for review...',
+    ]
+
+    const intervalId = window.setInterval(() => {
+      setLoadingStepIndex((current) => (current + 1) % loadingSteps.length)
+    }, 1600)
+
+    return () => window.clearInterval(intervalId)
+  }, [paData?.status])
+
+  const getOcrJson = () => {
+    const agentA = (paData as typeof paData & { details?: any }).details?.agent_a_output
+    return agentA || null
+  }
+
+  const getOcrJsonDisplay = () => {
+    const ocrJson = getOcrJson()
+    if (ocrJson) {
+      return JSON.stringify(ocrJson, null, 2)
+    }
+
+    const agentA = (paData as typeof paData & { details?: any }).details?.agent_a_output
+    const analysisSummary = agentA?.text_analysis?.summary
+    if (analysisSummary) {
+      return JSON.stringify({ summary: analysisSummary }, null, 2)
+    }
+
+    return null
+  }
+
+  const isOcrGenerating = () => {
+    const generatingStatuses = ['SUBMITTED', 'PROCESSING', 'AGENT_PROCESSING', 'SCORING', 'IN_REVIEW']
+    const hasOcrJson = !!getOcrJson()
+    return generatingStatuses.includes(paData.status) && !hasOcrJson
+  }
+
+  const getSubmittedAt = () => {
+    const rawValue = (paData as typeof paData & { createdAt?: string; created_at?: string }).submittedAt
+      || (paData as typeof paData & { createdAt?: string; created_at?: string }).createdAt
+      || (paData as typeof paData & { createdAt?: string; created_at?: string }).created_at
+    return rawValue
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -217,7 +280,7 @@ const PAStatus: React.FC = () => {
   const timelineSteps = getTimelineSteps(paData.status)
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Status Card */}
       <Card>
         <div className="p-6">
@@ -228,7 +291,7 @@ const PAStatus: React.FC = () => {
                 <Badge status={statusConfig.badge}>{paData.status.replace('_', ' ')}</Badge>
               </div>
               <p className="text-gray-500">
-                Submitted on {format(new Date(paData.submittedAt), 'MMM d, yyyy at h:mm a')}
+                Submitted on {formatDateSafe(getSubmittedAt(), 'MMM d, yyyy at h:mm a')}
               </p>
             </div>
             <div className="mt-4 lg:mt-0 flex items-center gap-2">
@@ -276,9 +339,8 @@ const PAStatus: React.FC = () => {
                     </div>
                     <div className="mt-3 text-center">
                       <span
-                        className={`block text-sm font-semibold ${
-                          isCompleted ? 'text-neutral-900' : 'text-neutral-400'
-                        }`}
+                        className={`block text-sm font-semibold ${isCompleted ? 'text-neutral-900' : 'text-neutral-400'
+                          }`}
                       >
                         {step.label}
                       </span>
@@ -332,6 +394,64 @@ const PAStatus: React.FC = () => {
         </div>
       </Card>
 
+      <Card title="Extracted OCR JSON" className="shadow-card border border-neutral-200">
+        <div className="p-6 space-y-3">
+          <p className="text-sm text-gray-500">
+            The OCR response JSON is shown below in a large centered viewer.
+          </p>
+
+          {isOcrGenerating() ? (
+            <div className="min-h-[30rem] overflow-hidden rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                <div>
+                  <p className="font-semibold text-slate-900">OCR in progress</p>
+                  <p className="text-sm text-slate-500">Please wait while we build the parsed JSON.</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-white/90 border border-slate-200 p-6 sm:p-8 min-h-[22rem] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                  <div className="flex items-center justify-center gap-2 mb-5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:150ms]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:300ms]" />
+                  </div>
+                  <p className="text-xl font-semibold text-slate-900 mb-2">
+                    {[
+                      'Uploading document...',
+                      'Detecting document type...',
+                      'Running OCR extraction...',
+                      'Cleaning and structuring text...',
+                      'Building parsed JSON...',
+                      'Saving results for review...',
+                    ][loadingStepIndex]}
+                  </p>
+                  <p className="text-sm text-slate-500 leading-6">
+                    The extracted payload will appear here automatically once processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-4 sm:px-6">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
+                  <p className="text-xs text-slate-500">Scrollable view of the complete OCR response.</p>
+                </div>
+                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Live response
+                </div>
+              </div>
+              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {getOcrJsonDisplay() || 'No OCR JSON available yet.'}
+              </pre>
+            </div>
+          )}
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Status Details */}
         <div className="lg:col-span-2 space-y-6">
@@ -367,7 +487,7 @@ const PAStatus: React.FC = () => {
                   <div className="bg-white rounded-lg p-4 mb-4 border border-green-200">
                     <p className="text-sm text-gray-500 mb-1">Valid Until</p>
                     <p className="font-medium text-gray-900">
-                      {format(new Date(paData.decision.expirationDate), 'MMM d, yyyy')}
+                      {formatDateSafe(paData.decision.expirationDate, 'MMM d, yyyy')}
                     </p>
                   </div>
                 )}
@@ -376,16 +496,14 @@ const PAStatus: React.FC = () => {
                   <div>
                     <p className="text-sm text-gray-600">Decision Date</p>
                     <p className="font-medium">
-                      {paData.decision.decidedAt
-                        ? format(new Date(paData.decision.decidedAt), 'MMM d, yyyy')
-                        : 'N/A'}
+                      {formatDateSafe(paData.decision.decidedAt, 'MMM d, yyyy')}
                     </p>
                   </div>
                   {paData.decision.effectiveDate && (
                     <div>
                       <p className="text-sm text-gray-600">Effective Date</p>
                       <p className="font-medium">
-                        {format(new Date(paData.decision.effectiveDate), 'MMM d, yyyy')}
+                        {formatDateSafe(paData.decision.effectiveDate, 'MMM d, yyyy')}
                       </p>
                     </div>
                   )}
@@ -619,7 +737,9 @@ const PAStatus: React.FC = () => {
             <div className="p-6 space-y-4">
               <div>
                 <p className="text-sm text-gray-500">Service Type</p>
-                <p className="font-medium">{paData.serviceType.replace('_', ' ')}</p>
+                <p className="font-medium">
+                  {paData.serviceType ? paData.serviceType.replace('_', ' ') : 'N/A'}
+                </p>
               </div>
 
               <div>

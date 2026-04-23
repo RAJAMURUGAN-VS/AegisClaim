@@ -4,6 +4,7 @@ import type {
   PARequest,
   PAFilter,
   PASubmissionFormData,
+  ProviderPASubmissionFormData,
   DecisionFormData,
   PaginatedResponse,
   Payer,
@@ -85,11 +86,18 @@ export const usePAStatus = (paId: string | undefined) => {
     enabled: !!paId,
     refetchInterval: (query) => {
       const data = query.state.data
-      // Poll every 10 seconds if status is SUBMITTED, IN_REVIEW, or AGENT_PROCESSING
-      if (data && (data.status === 'SUBMITTED' || data.status === 'IN_REVIEW' || data.status === 'AGENT_PROCESSING')) {
-        return 10000 // 10 seconds
+      // Keep polling until a terminal status is reached.
+      // This prevents UI from getting stuck on placeholders when backend uses PROCESSING/SCORING states.
+      if (!data) {
+        return 5000
       }
-      return false // Stop polling for other statuses
+
+      const terminalStatuses = new Set(['APPROVED', 'DENIED', 'DECIDED', 'ERROR'])
+      if (!terminalStatuses.has(data.status)) {
+        return 5000
+      }
+
+      return false
     },
   })
 }
@@ -98,14 +106,28 @@ export const usePAStatus = (paId: string | undefined) => {
 export const useSubmitPA = () => {
   const queryClient = useQueryClient()
 
-  return useMutation<PARequest, Error, PASubmissionFormData>({
-    mutationFn: (data) => paService.submitPA(data),
+  return useMutation<PARequest, Error, ProviderPASubmissionFormData>({
+    mutationFn: (data) => {
+      console.log('🔄 [Hook] useSubmitPA: mutation starting...')
+      return paService.submitPA(data)
+    },
     onSuccess: (result) => {
+      console.log('✅ [Hook] useSubmitPA: mutation succeeded')
+      const paId = (result as PARequest & { pa_id?: string }).id || (result as PARequest & { pa_id?: string }).pa_id
+      if (!paId) {
+        console.warn('⚠️  [Hook] useSubmitPA: No PA ID in response')
+        return
+      }
+
+      console.log(`🎯 [Hook] useSubmitPA: PA ID ${paId} cached for polling`)
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: paKeys.lists() })
       // Set the new PA data in cache
-      queryClient.setQueryData(paKeys.detail(result.id), result)
-      queryClient.setQueryData(paKeys.status(result.id), result)
+      queryClient.setQueryData(paKeys.detail(paId), result)
+      queryClient.setQueryData(paKeys.status(paId), result)
+    },
+    onError: (error) => {
+      console.error('❌ [Hook] useSubmitPA: mutation failed -', error)
     },
   })
 }

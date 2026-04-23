@@ -8,3 +8,4 @@ Pillow
 openpyxl
 python-pptx
 numpy
+pypdf

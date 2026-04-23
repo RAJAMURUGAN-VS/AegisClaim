@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any, Dict, List
 
 import httpx
@@ -11,6 +12,69 @@ logger = logging.getLogger(__name__)
 
 def _get_api_key() -> str | None:
     return settings.SONAR_API_KEY or settings.VITE_SONAR_API
+
+
+def _extract_json_candidates(text: str) -> List[str]:
+    """Return possible JSON object substrings from model output."""
+    candidates: List[str] = []
+    stack = 0
+    start_idx: int | None = None
+
+    for idx, ch in enumerate(text):
+        if ch == "{":
+            if stack == 0:
+                start_idx = idx
+            stack += 1
+        elif ch == "}":
+            if stack > 0:
+                stack -= 1
+                if stack == 0 and start_idx is not None:
+                    candidates.append(text[start_idx: idx + 1])
+                    start_idx = None
+
+    return candidates
+
+
+def _parse_sonar_json(content: str) -> Dict[str, Any]:
+    """Parse Sonar response content into a JSON object with robust fallbacks."""
+    raw = content.strip()
+    parse_attempts: List[str] = [raw]
+
+    # Remove fenced code wrappers if present.
+    fenced_match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw, re.IGNORECASE | re.DOTALL)
+    if fenced_match:
+        parse_attempts.append(fenced_match.group(1).strip())
+
+    # Add extracted balanced JSON object candidates.
+    parse_attempts.extend(_extract_json_candidates(raw))
+
+    for attempt in parse_attempts:
+        if not attempt:
+            continue
+        try:
+            parsed = json.loads(attempt)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    raise ValueError("Unable to parse Sonar response into JSON object.")
+
+
+def _call_sonar(payload: Dict[str, Any], headers: Dict[str, str], timeout: float) -> Dict[str, Any]:
+    """Call Sonar endpoint and gracefully retry with a reduced payload on 400s."""
+    with httpx.Client(timeout=timeout) as client:
+        response = client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
+
+    if response.status_code == 400 and "response_format" in payload:
+        retry_payload = dict(payload)
+        retry_payload.pop("response_format", None)
+        logger.info("Retrying Sonar call without response_format after 400 response.")
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=retry_payload)
+
+    response.raise_for_status()
+    return response.json()
 
 
 def analyze_extracted_text(text: str) -> Dict[str, Any]:
@@ -52,6 +116,7 @@ def analyze_extracted_text(text: str) -> Dict[str, Any]:
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0.1,
+        "response_format": {"type": "json_object"},
     }
 
     headers = {
@@ -60,19 +125,20 @@ def analyze_extracted_text(text: str) -> Dict[str, Any]:
     }
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
+        data = _call_sonar(payload=payload, headers=headers, timeout=30.0)
 
         content = data["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
+        parsed = _parse_sonar_json(content)
+
+        medical_signals = parsed.get("medical_necessity_signals", [])
+        risks = parsed.get("risks", [])
+        recommendations = parsed.get("recommendations", [])
 
         return {
             "summary": parsed.get("summary", ""),
-            "medical_necessity_signals": parsed.get("medical_necessity_signals", []),
-            "risks": parsed.get("risks", []),
-            "recommendations": parsed.get("recommendations", []),
+            "medical_necessity_signals": medical_signals if isinstance(medical_signals, list) else [str(medical_signals)],
+            "risks": risks if isinstance(risks, list) else [str(risks)],
+            "recommendations": recommendations if isinstance(recommendations, list) else [str(recommendations)],
         }
     except Exception as exc:
         logger.warning("Sonar analysis failed, using local fallback: %s", exc)

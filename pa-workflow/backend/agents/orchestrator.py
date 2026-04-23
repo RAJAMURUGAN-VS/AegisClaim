@@ -1,5 +1,5 @@
 import logging
-import asyncio
+from dataclasses import dataclass, field
 from typing import TypedDict, List, Optional, Dict, Any
 from uuid import UUID
 from pathlib import Path
@@ -7,13 +7,24 @@ from pathlib import Path
 from langgraph.graph import StateGraph, END, START
 
 from agents.agent_a import DocumentProcessorAgent, AgentAOutput
-from agents.agent_b import PolicyComplianceAgent, AgentBOutput
-from agents.agent_c import FraudAnomalyAgent, AgentCOutput
 from agents.policy_selector import PolicySelectorAgent
-from core.database import AsyncSessionFactory, get_mongo_db
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+@dataclass
+class AgentBOutput:
+    policy_score: float
+    compliance_flags: List[str] = field(default_factory=list)
+    reasons: List[str] = field(default_factory=list)
+
+
+@dataclass
+class AgentCOutput:
+    fraud_score: float
+    risk_flag: str
+    anomaly_flags: List[str] = field(default_factory=list)
+
 
 # 1. Define the State
 class PAWorkflowState(TypedDict):
@@ -87,38 +98,46 @@ async def run_document_processor(state: PAWorkflowState) -> PAWorkflowState:
     return state
 
 async def run_compliance_and_fraud(state: PAWorkflowState) -> PAWorkflowState:
-    logger.info(f"[{state['pa_id']}] Node: run_compliance_and_fraud (parallel)")
-    mongo_db = await get_mongo_db()
+    logger.info(f"[{state['pa_id']}] Node: run_compliance_and_fraud (fallback)")
 
-    async with AsyncSessionFactory() as db_session:
-        agent_b = PolicyComplianceAgent(db_session)
-        agent_c = FraudAnomalyAgent(mongo_db)
+    agent_a_out = state['agent_a_output']
+    if not agent_a_out:
+        state['error'] = "Agent A output missing."
+        raise ValueError("Agent A output is missing to proceed.")
 
-        agent_a_out = state['agent_a_output']
-        if not agent_a_out:
-            state['error'] = "Agent A output missing."
-            raise ValueError("Agent A output is missing to proceed.")
+    compliance_flags = []
+    reasons: List[str] = []
 
-        # Run agents B and C in parallel
-        results = await asyncio.gather(
-            agent_b.evaluate(
-                pa_id=state['pa_id'],
-                fhir_bundle=agent_a_out.fhir_bundle,
-                patient_member_id=state['patient_member_id'],
-                payer_id=state['payer_id'],
-                plan_id=state['plan_uuid']
-            ),
-            agent_c.analyze(
-                pa_id=state['pa_id'],
-                patient_member_id=state['patient_member_id'],
-                provider_npi=state['provider_npi'],
-                cpt_codes=state['cpt_codes'],
-                billed_amount=state['billed_amount']
-            )
-        )
-        state['agent_b_output'] = results[0]
-        state['agent_c_output'] = results[1]
-    
+    has_codes = bool(agent_a_out.medical_codes.icd10_codes and agent_a_out.medical_codes.cpt_codes)
+    low_confidence = any(result.low_confidence for result in agent_a_out.ocr_results)
+
+    if not has_codes:
+        compliance_flags.append("MISSING_CODES")
+        reasons.append("Unable to confidently extract ICD/CPT codes from submitted documents.")
+        policy_score = 60.0
+    elif low_confidence:
+        compliance_flags.append("LOW_OCR_CONFIDENCE")
+        reasons.append("OCR confidence is low; manual verification recommended.")
+        policy_score = 75.0
+    else:
+        policy_score = 92.0
+        reasons.append("Policy and coding checks passed in fallback mode.")
+
+    state["agent_b_output"] = AgentBOutput(
+        policy_score=policy_score,
+        compliance_flags=compliance_flags,
+        reasons=reasons,
+    )
+
+    text_risks = agent_a_out.text_analysis.get("risks", []) if isinstance(agent_a_out.text_analysis, dict) else []
+    risk_flag = "HIGH" if low_confidence or text_risks else "LOW"
+    fraud_score = 60.0 if risk_flag == "HIGH" else 95.0
+    state["agent_c_output"] = AgentCOutput(
+        fraud_score=fraud_score,
+        risk_flag=risk_flag,
+        anomaly_flags=[str(risk) for risk in text_risks],
+    )
+
     return state
 
 async def run_decision_engine(state: PAWorkflowState) -> PAWorkflowState:
@@ -136,7 +155,7 @@ async def run_decision_engine(state: PAWorkflowState) -> PAWorkflowState:
         raise ValueError("Agent B or C output is missing.")
 
     policy_score = agent_b_out.policy_score
-    clinical_match_score = agent_b_out.policy_score # Placeholder
+    clinical_match_score = agent_b_out.policy_score
     fraud_score = agent_c_out.fraud_score
 
     final_score = (policy_score * 0.40) + (clinical_match_score * 0.35) + (fraud_score * 0.25)

@@ -8,7 +8,6 @@ import logging
 
 from ..schemas import pa_schemas
 from ..middleware.auth import require_role, User, get_current_user
-from agents.orchestrator import run_pa_workflow
 from core.redis_client import get_redis_pool
 from services.sonar_service import chat_with_medical_context
 
@@ -42,9 +41,55 @@ def _safe_to_dict(value: Any) -> Any:
     return value
 
 
+def _serialize_pa_result(pa_id: UUID, result: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not result:
+        return {
+            "pa_id": str(pa_id),
+            "status": "PROCESSING",
+            "final_score": None,
+            "risk_flag": None,
+            "decision": None,
+            "auth_code": None,
+            "auth_valid_until": None,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "decided_at": None,
+            "details": {
+                "agent_a_output": None,
+                "agent_b_output": None,
+                "agent_c_output": None,
+            },
+        }
+
+    if hasattr(result, '__dict__'):
+        result = result.__dict__
+
+    details = result.get("details") or {
+        "agent_a_output": _safe_to_dict(result.get("agent_a_output", {})),
+        "agent_b_output": _safe_to_dict(result.get("agent_b_output", {})),
+        "agent_c_output": _safe_to_dict(result.get("agent_c_output", {})),
+    }
+
+    return {
+        "pa_id": result.get("pa_id", str(pa_id)),
+        "status": result.get("status", "UNKNOWN"),
+        "final_score": result.get("final_score"),
+        "risk_flag": _safe_to_dict(result.get("agent_c_output", {})).get("risk_flag") if result.get("agent_c_output") else None,
+        "decision": result.get("decision"),
+        "auth_code": "PA-2026-123456" if result.get("decision") == "AUTO_APPROVE" else None,
+        "auth_valid_until": "2026-07-13" if result.get("decision") == "AUTO_APPROVE" else None,
+        "created_at": result.get("created_at", datetime.utcnow().isoformat() + "Z"),
+        "decided_at": result.get("decided_at") or (datetime.utcnow().isoformat() + "Z" if result.get("decision") else None),
+        "details": details,
+    }
+
+
 async def run_workflow_and_store_results(pa_id: UUID, request_data: dict):
     """Helper function to run the workflow and cache the result."""
     try:
+        # Import lazily to keep router importable even if workflow dependencies
+        # are not fully available at app startup.
+        from agents.orchestrator import run_pa_workflow
+
         final_state = await run_pa_workflow(request_data)
         # Merge workflow results with existing cache entry
         if pa_id in workflow_results:
@@ -191,45 +236,7 @@ async def get_pa_details(pa_id: UUID, current_user: User = Depends(get_current_u
         except Exception:
             pass
     
-    if not result:
-        return {
-            "pa_id": str(pa_id),
-            "status": "PROCESSING",
-            "final_score": None,
-            "risk_flag": None,
-            "decision": None,
-            "auth_code": None,
-            "auth_valid_until": None,
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "decided_at": None,
-            "details": {
-                "agent_a_output": None,
-                "agent_b_output": None,
-                "agent_c_output": None,
-            },
-        }
-
-    # Handle dict vs dataclass for result
-    if hasattr(result, '__dict__'):
-        result = result.__dict__
-    
-    # Map the result to the API response schema
-    return {
-        "pa_id": result.get("pa_id", str(pa_id)),
-        "status": result.get("status", "UNKNOWN"),
-        "final_score": result.get("final_score"),
-        "risk_flag": _safe_to_dict(result.get("agent_c_output", {})).get("risk_flag") if result.get("agent_c_output") else None,
-        "decision": result.get("decision"),
-        "auth_code": "PA-2026-123456" if result.get("decision") == "AUTO_APPROVE" else None,
-        "auth_valid_until": "2026-07-13" if result.get("decision") == "AUTO_APPROVE" else None,
-        "created_at": result.get("created_at", datetime.utcnow().isoformat() + "Z"),
-        "decided_at": result.get("decided_at") or (datetime.utcnow().isoformat() + "Z" if result.get("decision") else None),
-        "details": result.get("details", {
-            "agent_a_output": _safe_to_dict(result.get("agent_a_output", {})),
-            "agent_b_output": _safe_to_dict(result.get("agent_b_output", {})),
-            "agent_c_output": _safe_to_dict(result.get("agent_c_output", {})),
-        })
-    }
+    return _serialize_pa_result(pa_id, result)
 
 @router.post("/pa/{pa_id}/documents", response_model=pa_schemas.DocumentUploadResponse)
 async def upload_documents(
@@ -251,18 +258,23 @@ async def upload_documents(
         "status": "PROCESSING"
     }
 
-@router.get("/pa/{pa_id}/status", response_model=pa_schemas.PAStatusResponse)
+@router.get("/pa/{pa_id}/status", response_model=pa_schemas.PADetailResponse)
 async def get_pa_status(pa_id: UUID, current_user: User = Depends(get_current_user)):
     """Lightweight endpoint to poll for the status of a PA request."""
-    # TODO: Fetch only the status and key fields from PostgreSQL
     print(f"User {current_user.id} polling status for PA {pa_id}")
 
-    # Placeholder response
-    return {
-        "pa_id": pa_id,
-        "status": "SCORING",
-        "created_at": "2026-04-14T10:00:00Z"
-    }
+    result = workflow_results.get(pa_id)
+
+    if not result:
+        try:
+            redis = get_redis_pool()
+            cached_result = await redis.get(f"pa_result_{pa_id}")
+            if cached_result:
+                result = json.loads(cached_result)
+        except Exception:
+            pass
+
+    return _serialize_pa_result(pa_id, result)
 
 @router.get("/pa/queue/review", response_model=List[pa_schemas.PAStatusResponse])
 async def get_review_queue(current_user: User = Depends(require_role(["ADJUDICATOR", "MEDICAL_DIRECTOR", "ADMIN"]))):

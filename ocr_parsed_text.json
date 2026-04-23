@@ -1,0 +1,570 @@
+﻿{
+    "clean_lines":  [
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "RAJAMURUGAN VS"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Chennai, Tamil Nadu, India"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "rajamuruganvs24@gmail.com — +91-8015766399 — Portfolio — LinkedIn — GitHub"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Professional Summary"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Computer Science student with hands-on experience in AI-driven applications and full-stack development, focused on building"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "intelligent, scalable, and user-centric systems. Experienced in integrating AI APIs, REST services, and developing context-"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "aware, interactive applications."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Education"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "B.E. Computer Science and Engineering (Honors – Full Stack)2023 – 2027 (Expected)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "R.M.D Engineering College"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "CGPA: 7.82 / 10"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Master’s Program in Software Engineering (MERN Stack)2024 – 2026 (Expected)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "NxtWave CCBP 4.0 Intensive Program (Woolf University)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Higher Secondary Education (Class XII – Matriculation)2022 – 2023"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Revoor Padmanabha Chetty Matriculation Higher Secondary School"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Percentage: 88%"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Secondary Education (Class X – CBSE)2020 – 2021"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Agarwal Vidyalaya and Junior College"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Percentage: 74%"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Technical Skills"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Languages:Java, JavaScript, Python, C, C++"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Development:React.js, HTML5, CSS3,Node.js, Express.js"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "AI-Assisted Dev:Claude Code ,Ollama, Cursor, GitHub"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Copilot, Antigravity, Windsurf, Kiro, Claude.ai, Lovable,"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Google AI Studio, Google Stitch, V0"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Database:SQLite, MySQL, PostgreSQL, MongoDB"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Tools:Git, GitHub, Postman, N8N, Make.com"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "AI \u0026 ML Tools:Roboflow, Teachable Machine"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "APIs \u0026 Integrations:Twilio,ElevenLabs,BotFather,MCP"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Projects"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Campus Vidhya – ERP-Style Academic PlatformView Project"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Built a full-stack campus management system using React + TypeScript, Node.js/Express, Prisma, and PostgreSQL,"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "enabling scalable workflows for OD/leave requests, portfolios, announcements, and analytics."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Developed REST APIs and a modern responsive UI with role-based routing, approval workflows, real-time dashboards,"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "and secure admin impersonation with audit logging."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Engineered a SerpAPI-based Google Scholar data pipeline with multi-source enrichment (Semantic Scholar, OpenAlex,"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Crossref), concurrency control, retry logic, and conflict-aware database merging."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Infinenix – AI Conversational PlatformView Project"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Built a conversational AI using React, TypeScript, and FastAPI with intent classification and persona-based responses."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Integrated intent filters, age-aware interactions, TTS, and external AI APIs for enhanced responses."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "React Portfolio Journey View Project"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Designed and developed a personal portfolio showcasing my frontend journey through React applications, focusing on"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "state management, reusable components, and responsive UI design."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Positions of Responsibility"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Developed a college ERP system that streamlined academic and administrative workflows."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Developed and maintained the official college symposium website for two consecutive years."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Served as an event coordinator for the college symposium, managingone technical eventwith seamless execution."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Certifications"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Oracle Certified Professional: Java SE 17 Developer"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Node.js \u0026 Secure API Development (Nxtwave)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Introduction to Databases \u0026 SQL (Nxtwave)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Dynamic Web Application Development (Nxtwave)"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "Achievements"
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Secured1st Placein SQL Query Contest at RMK Engineering College."
+                        },
+                        {
+                            "confidence":  1.0,
+                            "page":  1,
+                            "text":  "◦Solved2200+ coding problemson SkillRack."
+                        }
+                    ],
+    "extracted":  {
+                      "amount":  null,
+                      "claim_number":  null,
+                      "date":  null,
+                      "diagnosis":  null,
+                      "hospital":  null,
+                      "patient_name":  null,
+                      "policy_number":  null
+                  },
+    "file_type":  "pdf",
+    "filename":  "Rajamurugan_Resume.pdf",
+    "lines":  [
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "RAJAMURUGAN VS"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Chennai, Tamil Nadu, India"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "rajamuruganvs24@gmail.com — +91-8015766399 — Portfolio — LinkedIn — GitHub"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Professional Summary"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Computer Science student with hands-on experience in AI-driven applications and full-stack development, focused on building"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "intelligent, scalable, and user-centric systems. Experienced in integrating AI APIs, REST services, and developing context-"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "aware, interactive applications."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Education"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "B.E. Computer Science and Engineering (Honors – Full Stack)2023 – 2027 (Expected)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "R.M.D Engineering College"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "CGPA: 7.82 / 10"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Master’s Program in Software Engineering (MERN Stack)2024 – 2026 (Expected)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "NxtWave CCBP 4.0 Intensive Program (Woolf University)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Higher Secondary Education (Class XII – Matriculation)2022 – 2023"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Revoor Padmanabha Chetty Matriculation Higher Secondary School"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Percentage: 88%"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Secondary Education (Class X – CBSE)2020 – 2021"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Agarwal Vidyalaya and Junior College"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Percentage: 74%"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Technical Skills"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Languages:Java, JavaScript, Python, C, C++"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Development:React.js, HTML5, CSS3,Node.js, Express.js"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "AI-Assisted Dev:Claude Code ,Ollama, Cursor, GitHub"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Copilot, Antigravity, Windsurf, Kiro, Claude.ai, Lovable,"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Google AI Studio, Google Stitch, V0"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Database:SQLite, MySQL, PostgreSQL, MongoDB"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Tools:Git, GitHub, Postman, N8N, Make.com"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "AI \u0026 ML Tools:Roboflow, Teachable Machine"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "APIs \u0026 Integrations:Twilio,ElevenLabs,BotFather,MCP"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Projects"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Campus Vidhya – ERP-Style Academic PlatformView Project"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Built a full-stack campus management system using React + TypeScript, Node.js/Express, Prisma, and PostgreSQL,"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "enabling scalable workflows for OD/leave requests, portfolios, announcements, and analytics."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Developed REST APIs and a modern responsive UI with role-based routing, approval workflows, real-time dashboards,"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "and secure admin impersonation with audit logging."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Engineered a SerpAPI-based Google Scholar data pipeline with multi-source enrichment (Semantic Scholar, OpenAlex,"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Crossref), concurrency control, retry logic, and conflict-aware database merging."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Infinenix – AI Conversational PlatformView Project"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Built a conversational AI using React, TypeScript, and FastAPI with intent classification and persona-based responses."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Integrated intent filters, age-aware interactions, TTS, and external AI APIs for enhanced responses."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "React Portfolio Journey View Project"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Designed and developed a personal portfolio showcasing my frontend journey through React applications, focusing on"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "state management, reusable components, and responsive UI design."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Positions of Responsibility"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Developed a college ERP system that streamlined academic and administrative workflows."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Developed and maintained the official college symposium website for two consecutive years."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Served as an event coordinator for the college symposium, managingone technical eventwith seamless execution."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Certifications"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Oracle Certified Professional: Java SE 17 Developer"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Node.js \u0026 Secure API Development (Nxtwave)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Introduction to Databases \u0026 SQL (Nxtwave)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Dynamic Web Application Development (Nxtwave)"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "Achievements"
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Secured1st Placein SQL Query Contest at RMK Engineering College."
+                  },
+                  {
+                      "confidence":  1.0,
+                      "page":  1,
+                      "text":  "◦Solved2200+ coding problemson SkillRack."
+                  }
+              ],
+    "page_count":  1,
+    "success":  true,
+    "warning":  "Poppler not found. Used pypdf/PyMuPDF fallback."
+}

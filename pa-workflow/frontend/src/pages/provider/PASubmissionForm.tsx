@@ -60,13 +60,16 @@ interface UploadedFile {
   type: string
 }
 
+// Temporary testing switch: lets provider land directly on document upload.
+const DIRECT_DOC_UPLOAD_TEST_MODE = true
+
 const ACCEPTED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff']
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 const PASubmissionForm: React.FC = () => {
   const navigate = useNavigate()
   const { showNotification } = useNotifications()
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(DIRECT_DOC_UPLOAD_TEST_MODE ? 3 : 1)
   const [icdInput, setIcdInput] = useState('')
   const [cptInput, setCptInput] = useState('')
   const [isDragging, setIsDragging] = useState(false)
@@ -76,18 +79,17 @@ const PASubmissionForm: React.FC = () => {
     handleSubmit,
     setValue,
     watch,
-    trigger,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      patientMemberId: '',
-      payerId: '',
-      planId: '',
-      providerNpi: '',
+      patientMemberId: DIRECT_DOC_UPLOAD_TEST_MODE ? 'TEST12345' : '',
+      payerId: DIRECT_DOC_UPLOAD_TEST_MODE ? '11111111-1111-1111-1111-111111111111' : '',
+      planId: DIRECT_DOC_UPLOAD_TEST_MODE ? 'plan-001' : '',
+      providerNpi: DIRECT_DOC_UPLOAD_TEST_MODE ? '1234567890' : '',
       dateOfService: new Date().toISOString().split('T')[0],
-      icd10Codes: [],
-      cptCodes: [],
+      icd10Codes: DIRECT_DOC_UPLOAD_TEST_MODE ? ['E11.9'] : [],
+      cptCodes: DIRECT_DOC_UPLOAD_TEST_MODE ? ['99213'] : [],
       priorTreatmentHistory: '',
       medicationName: '',
       medicationDosage: '',
@@ -105,28 +107,8 @@ const PASubmissionForm: React.FC = () => {
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
   const { data: plans, isLoading: isLoadingPlans } = usePlansByPayer(selectedPayerId)
 
-  const validateCurrentStep = async (): Promise<boolean> => {
-    let fieldsToValidate: (keyof FormData)[] = []
-
-    switch (currentStep) {
-      case 1:
-        fieldsToValidate = ['patientMemberId', 'payerId', 'planId', 'providerNpi', 'dateOfService']
-        break
-      case 2:
-        fieldsToValidate = ['icd10Codes', 'cptCodes']
-        break
-      case 3:
-        fieldsToValidate = ['documents']
-        break
-    }
-
-    const result = await trigger(fieldsToValidate)
-    return result
-  }
-
-  const handleNext = async () => {
-    const isValid = await validateCurrentStep()
-    if (isValid && currentStep < 3) {
+  const handleNext = () => {
+    if (currentStep < 3) {
       setCurrentStep((prev) => prev + 1)
     }
   }
@@ -255,34 +237,56 @@ const PASubmissionForm: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     try {
+      console.log('🚀 [Form] Submit button clicked. Processing PA submission...')
       const submissionData = {
-        patientName: '',
-        patientDOB: data.dateOfService,
-        memberId: data.patientMemberId,
-        insurancePlan: data.planId,
-        providerNPI: data.providerNpi,
-        providerName: '',
-        providerPhone: '',
-        serviceType: 'MEDICAL' as const,
-        procedureCodes: data.cptCodes,
-        diagnosisCodes: data.icd10Codes,
-        clinicalHistory: data.priorTreatmentHistory || '',
-        previousTreatments: '',
-        symptoms: '',
-        durationOfSymptoms: '',
-        urgencyLevel: 'ROUTINE' as const,
-        requestedDate: data.dateOfService,
+        patientMemberId: data.patientMemberId,
+        payerId: data.payerId,
+        planId: data.planId,
+        providerNpi: data.providerNpi,
+        dateOfService: data.dateOfService,
+        icd10Codes: data.icd10Codes,
+        cptCodes: data.cptCodes,
+        priorTreatmentHistory: data.priorTreatmentHistory,
+        medicationName: data.medicationName,
+        medicationDosage: data.medicationDosage,
+        documents: data.documents,
       }
 
+      console.log('⏳ [Form] Waiting for backend response (this may take up to 3 minutes)...')
+      const startTime = Date.now()
       const result = await submitPAMutation.mutateAsync(submissionData)
+      const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2)
+      console.log(`⏱️  [Form] Response received in ${elapsedTime} seconds`)
+
+      const paId = (result as { id?: string; pa_id?: string }).id || (result as { id?: string; pa_id?: string }).pa_id
+      console.log('✨ [Form] Full API Response:', result)
+      console.log('🎯 [Form] PA ID extracted:', paId)
+
+      // Display OCR results details
+      const details = (result as any)?.details
+      if (details?.agent_a_output?.ocr_results) {
+        const ocrResults = details.agent_a_output.ocr_results
+        console.log('\n🔍 [Form] OCR RESULTS SUMMARY:')
+        console.log(`Document Type: ${ocrResults.document_type || 'Unknown'}`)
+        console.log(`Confidence: ${ocrResults.confidence?.toFixed(4) || 'N/A'}`)
+        console.log(`Total Lines Extracted: ${ocrResults.clean_lines?.length || 0}`)
+        if (ocrResults.full_text) {
+          console.log(`Full Text Preview: ${ocrResults.full_text.substring(0, 200)}...`)
+        }
+        console.log('\n')
+      }
 
       showNotification({
         type: 'success',
         title: 'PA Submitted Successfully',
-        message: `Your prior authorization request ${result.id} has been submitted.`,
+        message: `Your prior authorization request ${paId || 'is'} has been submitted.`,
       })
-      navigate(`/provider/status/${result.id}`)
+      if (paId) {
+        console.log(`🔗 [Form] Navigating to status page: /provider/status/${paId}`)
+        navigate(`/provider/status/${paId}`)
+      }
     } catch (error) {
+      console.error('❌ [Form] Submission error:', error)
       showNotification({
         type: 'error',
         title: 'Submission Failed',
