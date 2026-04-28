@@ -278,4 +278,35 @@ export const paService = {
     })
     return response.data
   },
+
+  // Download summary report as DOCX
+  downloadSummaryReport: async (paId: string): Promise<void> => {
+    try {
+      console.log(`📄 [PA Service] Downloading summary report for PA ${paId}...`)
+
+      const response = await api.get(`/pa/${paId}/report/download`, {
+        responseType: 'blob',
+      })
+
+      // Create a blob and trigger download
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `PA_${paId}_Summary_Report.docx`
+
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      console.log(`✅ [PA Service] Report downloaded successfully for PA ${paId}`)
+    } catch (error) {
+      console.error(`❌ [PA Service] Failed to download report for PA ${paId}:`, error)
+      throw error
+    }
+  },
 }

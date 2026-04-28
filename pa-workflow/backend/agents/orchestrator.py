@@ -74,7 +74,7 @@ async def run_policy_selector(state: PAWorkflowState) -> PAWorkflowState:
     return state
 
 async def run_document_processor(state: PAWorkflowState) -> PAWorkflowState:
-    logger.info(f"[{state['pa_id']}] Node: run_document_processor")
+    logger.info(f"[{state['pa_id']}] Node: run_document_processor START")
     
     if state['missing_documents']:
         if state['retry_count'] < 2:
@@ -88,13 +88,31 @@ async def run_document_processor(state: PAWorkflowState) -> PAWorkflowState:
             logger.error(f"[{state['pa_id']}] Missing documents after max retries. Auto-denying.")
             return state
 
+    logger.info(f"[{state['pa_id']}] Creating DocumentProcessorAgent...")
     agent = DocumentProcessorAgent()
+    logger.info(f"[{state['pa_id']}] Calling agent.process_documents with {len(state['document_paths'])} documents...")
     output = agent.process_documents(state['pa_id'], state['document_paths'], state['patient_data'])
+
+    logger.info(f"[{state['pa_id']}] Agent A output received")
+    logger.info(f"[{state['pa_id']}]   - Type: {type(output)}")
+    logger.info(f"[{state['pa_id']}]   - Has text_analysis: {hasattr(output, 'text_analysis')}")
+    if hasattr(output, 'text_analysis'):
+        ta = output.text_analysis
+        logger.info(f"[{state['pa_id']}]   - text_analysis type: {type(ta)}")
+        logger.info(f"[{state['pa_id']}]   - text_analysis content: {ta}")
+        if isinstance(ta, dict) and 'summary' in ta:
+            logger.info(f"[{state['pa_id']}]   ✅ SONAR DATA FOUND: {ta['summary'][:100]}...")
+        elif isinstance(ta, dict) and not ta:
+            logger.warning(f"[{state['pa_id']}]   ⚠️ text_analysis is empty dict")
+        else:
+            logger.warning(f"[{state['pa_id']}]   ⚠️ text_analysis not in expected format")
+
     state['agent_a_output'] = output
     
     if output.flagged_for_review:
         logger.warning(f"[{state['pa_id']}] Low OCR confidence detected. Flagging for review.")
-        
+
+    logger.info(f"[{state['pa_id']}] Node: run_document_processor END - SUCCESS")
     return state
 
 async def run_compliance_and_fraud(state: PAWorkflowState) -> PAWorkflowState:

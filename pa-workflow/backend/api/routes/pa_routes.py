@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Form
+from fastapi.responses import FileResponse
 from uuid import UUID, uuid4, uuid5, NAMESPACE_DNS
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -9,7 +10,8 @@ import logging
 from ..schemas import pa_schemas
 from ..middleware.auth import require_role, User, get_current_user
 from core.redis_client import get_redis_pool
-from services.sonar_service import chat_with_medical_context
+from services.sonar_service import chat_with_medical_context, analyze_extracted_text
+from services.report_service import generate_summary_report, save_report_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +88,38 @@ def _serialize_pa_result(pa_id: UUID, result: Optional[Dict[str, Any]]) -> Dict[
 async def run_workflow_and_store_results(pa_id: UUID, request_data: dict):
     """Helper function to run the workflow and cache the result."""
     try:
+        logger.info(f"🚀 [WORKFLOW START] Starting background workflow for PA {pa_id}")
+        logger.info(f"Request data documents: {request_data.get('document_paths', [])}")
+
         # Import lazily to keep router importable even if workflow dependencies
         # are not fully available at app startup.
         from agents.orchestrator import run_pa_workflow
 
+        logger.info(f"⏳ [WORKFLOW] Calling run_pa_workflow for PA {pa_id}...")
         final_state = await run_pa_workflow(request_data)
+        logger.info(f"✅ [WORKFLOW] Workflow completed for PA {pa_id}")
+        logger.info(f"📊 [WORKFLOW] Final state keys: {list(final_state.keys())}")
+        logger.info(f"📊 [WORKFLOW] Status: {final_state.get('status')}, Decision: {final_state.get('decision')}, Score: {final_state.get('final_score')}")
+
+        # Check if Agent A output has Sonar data
+        agent_a_output = final_state.get('agent_a_output')
+        if agent_a_output:
+            logger.info(f"📋 [WORKFLOW] Agent A output type: {type(agent_a_output)}")
+            if hasattr(agent_a_output, 'text_analysis'):
+                ta = agent_a_output.text_analysis
+                logger.info(f"✅ [WORKFLOW] Agent A has text_analysis: {type(ta)}")
+                if isinstance(ta, dict) and 'summary' in ta:
+                    logger.info(f"🎯 [WORKFLOW] ✅ SONAR DATA FOUND IN AGENT A: {ta['summary'][:80]}...")
+                else:
+                    logger.warning(f"⚠️ [WORKFLOW] Agent A text_analysis not dict or missing summary: {ta}")
+            else:
+                logger.warning(f"⚠️ [WORKFLOW] Agent A output has no text_analysis attribute")
+        else:
+            logger.warning(f"⚠️ [WORKFLOW] No Agent A output in final state")
+
         # Merge workflow results with existing cache entry
         if pa_id in workflow_results:
+            logger.info(f"📦 [WORKFLOW] Updating existing workflow_results entry for PA {pa_id}")
             workflow_results[pa_id].update({
                 "status": final_state.get("status", "COMPLETED"),
                 "final_score": final_state.get("final_score"),
@@ -102,17 +129,23 @@ async def run_workflow_and_store_results(pa_id: UUID, request_data: dict):
                 "agent_c_output": final_state.get("agent_c_output"),
                 "decided_at": datetime.utcnow().isoformat() + "Z",
             })
+            logger.info(f"✅ [WORKFLOW] Cache updated successfully")
         else:
+            logger.warning(f"⚠️ [WORKFLOW] No existing workflow_results entry, creating new one")
             workflow_results[pa_id] = final_state
         
         try:
             redis = get_redis_pool()
+            logger.info(f"💾 [WORKFLOW] Saving to Redis...")
             await redis.set(f"pa_result_{pa_id}", json.dumps(_safe_to_dict(workflow_results[pa_id])), ex=3600)
-        except Exception:
+            logger.info(f"✅ [WORKFLOW] Redis save successful")
+        except Exception as redis_err:
             # Redis may be unavailable in local dev; in-memory cache still works.
-            pass
+            logger.warning(f"⚠️ [WORKFLOW] Redis unavailable (this is OK for local dev): {redis_err}")
+
+        logger.info(f"🎉 [WORKFLOW END] Workflow completed successfully for PA {pa_id}")
     except Exception as e:
-        logger.error(f"Error in workflow for PA {pa_id}: {str(e)}")
+        logger.error(f"❌ [WORKFLOW ERROR] Error in workflow for PA {pa_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         # Update cache with error state
         if pa_id in workflow_results:
             workflow_results[pa_id].update({
@@ -387,6 +420,96 @@ async def chat_on_pa_context(
         "answer": chat_result.get("answer", "No response available."),
         "used_context_keys": chat_result.get("used_context_keys", []),
     }
+
+
+@router.get("/pa/{pa_id}/report/download")
+async def download_pa_report(
+    pa_id: UUID,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate and download a professional summary report for a PA request.
+    Returns a DOCX file with clinical analysis, medical codes, and decision summary.
+    """
+    # Load PA data from cache
+    result = workflow_results.get(pa_id)
+    if not result:
+        try:
+            redis = get_redis_pool()
+            cached_result = await redis.get(f"pa_result_{pa_id}")
+            if cached_result:
+                result = json.loads(cached_result)
+        except Exception:
+            pass
+    
+    # Serialize the PA result
+    pa_data = _serialize_pa_result(pa_id, result)
+    
+    # Extract Sonar analysis from agent A output if available
+    sonar_analysis = None
+    if result:
+        logger.info(f"Extracting Sonar analysis for PA {pa_id}")
+        # Convert result to dict if it's a dataclass
+        result_dict = result if isinstance(result, dict) else _safe_to_dict(result)
+        logger.info(f"Result dict keys: {list(result_dict.keys())}")
+        
+        # Look for text_analysis in agent_a_output
+        details = result_dict.get('details') or {}
+        logger.info(f"Details keys: {list(details.keys())}")
+        agent_a_output = details.get('agent_a_output')
+        logger.info(f"Agent A output type: {type(agent_a_output)}")
+        
+        if agent_a_output:
+            # Handle both dict and dataclass formats
+            if isinstance(agent_a_output, dict):
+                logger.info(f"Agent A is dict, keys: {list(agent_a_output.keys())}")
+                sonar_analysis = agent_a_output.get('text_analysis')
+                logger.info(f"Sonar analysis from dict: {type(sonar_analysis)}")
+            else:
+                # Convert dataclass to dict if needed
+                logger.info(f"Agent A is object, converting to dict")
+                agent_a_dict = _safe_to_dict(agent_a_output)
+                logger.info(f"Agent A dict keys: {list(agent_a_dict.keys())}")
+                sonar_analysis = agent_a_dict.get('text_analysis')
+                logger.info(f"Sonar analysis from converted dict: {type(sonar_analysis)}")
+        
+        # Fallback: try to get from raw result.agent_a_output
+        if not sonar_analysis and hasattr(result, 'agent_a_output'):
+            logger.info("Trying raw result.agent_a_output fallback")
+            raw_agent_a = result.agent_a_output
+            if hasattr(raw_agent_a, 'text_analysis'):
+                sonar_analysis = raw_agent_a.text_analysis
+                logger.info(f"Found sonar_analysis via raw attribute: {type(sonar_analysis)}")
+            elif isinstance(raw_agent_a, dict) and 'text_analysis' in raw_agent_a:
+                sonar_analysis = raw_agent_a['text_analysis']
+                logger.info(f"Found sonar_analysis via raw dict: {type(sonar_analysis)}")
+
+        if sonar_analysis:
+            logger.info(f"✅ SONAR ANALYSIS FOUND: {type(sonar_analysis)}, keys: {list(sonar_analysis.keys()) if isinstance(sonar_analysis, dict) else 'N/A'}")
+        else:
+            logger.warning(f"⚠️ NO SONAR ANALYSIS FOUND for PA {pa_id}")
+    else:
+        logger.warning(f"⚠️ NO RESULT FOUND for PA {pa_id}")
+    
+    try:
+        # Generate the report document
+        report_bytes = generate_summary_report(pa_id, pa_data, sonar_analysis)
+        
+        # Save to disk for audit trail
+        file_path = save_report_to_file(pa_id, report_bytes)
+        
+        # Return as downloadable file
+        return FileResponse(
+            path=file_path,
+            filename=f"PA_{pa_id}_Summary_Report.docx",
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    except Exception as e:
+        logger.error(f"Error generating report for PA {pa_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate report: {str(e)}"
+        )
 
 
 # Payer endpoints

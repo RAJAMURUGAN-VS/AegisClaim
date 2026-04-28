@@ -79,7 +79,13 @@ class DocumentProcessorAgent:
                 continue
 
         cleaned_text = self._clean_text(full_text)
+        logger.info(f"[{pa_id}] Calling Sonar to analyze extracted text...")
         text_analysis = analyze_extracted_text(cleaned_text)
+        logger.info(f"[{pa_id}] Sonar analysis complete. Keys: {list(text_analysis.keys()) if isinstance(text_analysis, dict) else 'NOT A DICT'}")
+        if isinstance(text_analysis, dict) and 'summary' in text_analysis:
+            logger.info(f"[{pa_id}] ✅ Sonar summary found: {text_analysis['summary'][:100]}...")
+        else:
+            logger.warning(f"[{pa_id}] ⚠️ No Sonar summary. Sonar response: {text_analysis}")
         extracted_codes = self._extract_medical_codes(cleaned_text)
         fhir_bundle = self._build_fhir_bundle(pa_id, patient_data, extracted_codes)
 

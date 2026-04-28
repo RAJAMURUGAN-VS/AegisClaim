@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { usePAStatus, useSubmitAppeal } from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
+import { paService } from '../../services/pa.service'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Badge } from '../../components/common/Badge'
@@ -66,6 +67,33 @@ const PAStatus: React.FC = () => {
         type: 'error',
         title: 'Appeal Failed',
         message: 'There was an error submitting your appeal. Please try again.',
+      })
+    }
+  }
+
+  const handleDownloadReport = async () => {
+    if (!pa_id) return
+
+    try {
+      showNotification({
+        type: 'info',
+        title: 'Generating Report',
+        message: 'Preparing your professional summary report...',
+      })
+
+      await paService.downloadSummaryReport(pa_id)
+
+      showNotification({
+        type: 'success',
+        title: 'Report Downloaded',
+        message: 'Your PA summary report has been downloaded successfully.',
+      })
+    } catch (error) {
+      console.error('Failed to download report:', error)
+      showNotification({
+        type: 'error',
+        title: 'Download Failed',
+        message: 'Failed to download the report. Please try again.',
       })
     }
   }
@@ -299,6 +327,10 @@ const PAStatus: React.FC = () => {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
+              <Button variant="primary" onClick={handleDownloadReport} size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Download Report
+              </Button>
             </div>
           </div>
 
@@ -520,9 +552,9 @@ const PAStatus: React.FC = () => {
                   </div>
                 )}
 
-                <Button variant="primary" className="w-full">
+                <Button variant="primary" className="w-full" onClick={handleDownloadReport}>
                   <Download className="w-4 h-4 mr-2" />
-                  Download Approval Letter
+                  Download Summary Report
                 </Button>
               </div>
             </Card>
@@ -566,7 +598,10 @@ const PAStatus: React.FC = () => {
                   <Button variant="primary" onClick={() => setShowAppealModal(true)}>
                     Start Appeal
                   </Button>
-                  <Button variant="secondary">Contact Support</Button>
+                  <Button variant="secondary" onClick={handleDownloadReport}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Report
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -586,7 +621,7 @@ const PAStatus: React.FC = () => {
                   This process typically takes up to 24 business hours.
                 </p>
 
-                <div className="bg-white rounded-lg p-4 border border-orange-200">
+                <div className="bg-white rounded-lg p-4 border border-orange-200 mb-4">
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-orange-500" />
                     <div>
@@ -595,6 +630,11 @@ const PAStatus: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                <Button variant="secondary" className="w-full" onClick={handleDownloadReport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Submission Report
+                </Button>
               </div>
             </Card>
           )}

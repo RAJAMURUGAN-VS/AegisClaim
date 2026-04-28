@@ -66,13 +66,20 @@ def _call_sonar(payload: Dict[str, Any], headers: Dict[str, str], timeout: float
     with httpx.Client(timeout=timeout) as client:
         response = client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
 
+    logger.info(f"Sonar API initial response status code: {response.status_code}")
+    
     if response.status_code == 400 and "response_format" in payload:
+        logger.warning(f"Got 400 status code. Response text: {response.text}")
         retry_payload = dict(payload)
         retry_payload.pop("response_format", None)
         logger.info("Retrying Sonar call without response_format after 400 response.")
         with httpx.Client(timeout=timeout) as client:
             response = client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=retry_payload)
-
+        logger.info(f"Sonar API retry response status code: {response.status_code}")
+    
+    if response.status_code != 200:
+        logger.error(f"Sonar API error - Status: {response.status_code}, Response: {response.text}")
+    
     response.raise_for_status()
     return response.json()
 
@@ -82,7 +89,10 @@ def analyze_extracted_text(text: str) -> Dict[str, Any]:
 
     Falls back to deterministic local heuristics if API key is unavailable or call fails.
     """
+    logger.info(f"Starting Sonar analysis on text length: {len(text)} chars")
+    
     if not text.strip():
+        logger.warning("Empty text provided to Sonar analysis")
         return {
             "summary": "No extracted text available.",
             "medical_necessity_signals": [],
@@ -92,6 +102,7 @@ def analyze_extracted_text(text: str) -> Dict[str, Any]:
 
     api_key = _get_api_key()
     if not api_key:
+        logger.error("SONAR_API_KEY or VITE_SONAR_API not set in environment")
         return {
             "summary": text[:400],
             "medical_necessity_signals": [],
@@ -125,23 +136,28 @@ def analyze_extracted_text(text: str) -> Dict[str, Any]:
     }
 
     try:
+        logger.info("Calling Perplexity Sonar API...")
         data = _call_sonar(payload=payload, headers=headers, timeout=30.0)
+        logger.info("Sonar API call successful")
 
         content = data["choices"][0]["message"]["content"]
         parsed = _parse_sonar_json(content)
+        logger.info(f"Sonar JSON parsed successfully. Keys: {list(parsed.keys())}")
 
         medical_signals = parsed.get("medical_necessity_signals", [])
         risks = parsed.get("risks", [])
         recommendations = parsed.get("recommendations", [])
 
-        return {
+        result = {
             "summary": parsed.get("summary", ""),
             "medical_necessity_signals": medical_signals if isinstance(medical_signals, list) else [str(medical_signals)],
             "risks": risks if isinstance(risks, list) else [str(risks)],
             "recommendations": recommendations if isinstance(recommendations, list) else [str(recommendations)],
         }
+        logger.info(f"Sonar analysis complete: {len(medical_signals)} signals, {len(risks)} risks, {len(recommendations)} recommendations")
+        return result
     except Exception as exc:
-        logger.warning("Sonar analysis failed, using local fallback: %s", exc)
+        logger.warning(f"Sonar analysis failed, using local fallback: {type(exc).__name__}: {exc}")
         lower = text.lower()
         risks = []
         if "denies" in lower or "without" in lower:
