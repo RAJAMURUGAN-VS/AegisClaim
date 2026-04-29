@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   CheckCircle,
@@ -15,6 +15,7 @@ import {
   Shield,
   User,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react'
 import { usePAStatus, useSubmitAppeal } from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -28,6 +29,7 @@ import type { PAStatus as PAStatusType, AgentOutput } from '../../types/pa.types
 
 const PAStatus: React.FC = () => {
   const { pa_id } = useParams<{ pa_id: string }>()
+  const navigate = useNavigate()
   const { showNotification } = useNotifications()
   const [showAgentPanel, setShowAgentPanel] = useState(true)
   const [showAppealModal, setShowAppealModal] = useState(false)
@@ -309,6 +311,18 @@ const PAStatus: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Back Button */}
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </Button>
+      </div>
+
       {/* Status Card */}
       <Card>
         <div className="p-6">

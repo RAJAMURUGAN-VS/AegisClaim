@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { 
-  Bell, 
-  User, 
-  ChevronDown, 
-  LogOut, 
-  Settings, 
-  Search, 
+import {
+  Bell,
+  User,
+  ChevronDown,
+  LogOut,
+  Settings,
+  Search,
   Menu,
   CheckCircle,
   AlertTriangle,
@@ -30,14 +30,14 @@ const mockNotifications = [
   { id: 5, type: 'warning', message: 'Pending review queue exceeds 10 items', time: '3 hours ago', icon: Clock },
 ]
 
-export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed }) => {
+export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { user, logout } = useAuth()
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const [pageTitle, setPageTitle] = useState('Dashboard')
   const [breadcrumbs, setBreadcrumbs] = useState<string[]>([])
   const [hasNewNotification, setHasNewNotification] = useState(true)
-  
+
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
 
@@ -46,16 +46,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
     const updatePageInfo = () => {
       const path = window.location.pathname
       const pathParts = path.split('/').filter(Boolean)
-      
+
       // Set breadcrumbs
-      const crumbs = pathParts.map(part => 
+      const crumbs = pathParts.map(part =>
         part.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
       )
       setBreadcrumbs(crumbs)
-      
+
       // Set page title
-      if (path.includes('/provider/submit')) setPageTitle('Submit Prior Authorization')
-      else if (path.includes('/provider/status')) setPageTitle('My Requests')
+      if (path.includes('/provider/submit') || path.includes('/real-provider/submit')) setPageTitle('Submit Prior Authorization')
+      else if (path.includes('/provider/status') || path.includes('/real-provider/status')) setPageTitle('My Requests')
       else if (path.includes('/adjudicator/queue')) setPageTitle('Review Queue')
       else if (path.includes('/adjudicator/review')) setPageTitle('Review Request')
       else if (path.includes('/admin/dashboard')) setPageTitle('Dashboard')
@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
           )}
           <h1 className="text-lg font-semibold text-neutral-900">{pageTitle}</h1>
         </div>
-        
+
         {/* Mobile: Just show title */}
         <h1 className="sm:hidden text-base font-semibold text-neutral-900">{pageTitle}</h1>
       </div>
@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
         {/* Search Button */}
-        <button 
+        <button
           className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
           aria-label="Search"
         >
@@ -149,8 +149,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
             }}
             className={`
               relative p-2 rounded-lg transition-all duration-200
-              ${isNotificationOpen 
-                ? 'bg-primary-50 text-primary-600' 
+              ${isNotificationOpen
+                ? 'bg-primary-50 text-primary-600'
                 : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
               }
               ${hasNewNotification ? 'animate-shake' : ''}
@@ -174,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
                   Mark all read
                 </button>
               </div>
-              
+
               <div className="max-h-80 overflow-y-auto">
                 {mockNotifications.map((notification) => {
                   const Icon = notification.icon
@@ -194,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
                   )
                 })}
               </div>
-              
+
               <div className="px-4 py-2 border-t border-neutral-100">
                 <button className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-medium py-2">
                   View all notifications
@@ -210,8 +210,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
             onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
             className={`
               flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-all duration-200
-              ${isUserDropdownOpen 
-                ? 'bg-primary-50 text-primary-600' 
+              ${isUserDropdownOpen
+                ? 'bg-primary-50 text-primary-600'
                 : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
               }
             `}
@@ -249,7 +249,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
                   {user?.role?.toLowerCase().replace('_', ' ')}
                 </p>
               </div>
-              
+
               {/* Menu Items */}
               <div className="py-1">
                 <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
@@ -261,7 +261,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarCollapsed
                   Settings
                 </button>
               </div>
-              
+
               {/* Logout */}
               <div className="border-t border-neutral-100 pt-1 mt-1">
                 <button

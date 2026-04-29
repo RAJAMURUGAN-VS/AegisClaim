@@ -3,20 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { 
-  Shield, 
-  AlertCircle, 
-  CheckCircle2, 
-  Brain, 
-  Lock, 
+import {
+  Shield,
+  AlertCircle,
+  CheckCircle2,
+  Brain,
+  Lock,
   Zap,
   Mail,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Beaker,
+  Users
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useProviderType } from '../../context/ProviderContext'
 import { Button } from '../../components/common/Button'
+
+type ProviderType = 'testing' | 'real'
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
@@ -41,8 +46,10 @@ const demoCredentials = [
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { setProviderType } = useProviderType()
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [providerType, setProviderTypeState] = useState<ProviderType>('testing')
 
   const {
     register,
@@ -60,6 +67,10 @@ const Login: React.FC = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
+      // Persist providerType to localStorage AND context
+      localStorage.setItem('providerType', providerType)
+      setProviderType(providerType)
+
       await login(data.email, data.password)
       // Get user from localStorage after successful login
       const storedUser = localStorage.getItem('user')
@@ -67,7 +78,12 @@ const Login: React.FC = () => {
         const user = JSON.parse(storedUser)
         switch (user.role) {
           case 'PROVIDER':
-            navigate('/provider/submit')
+            // Route to appropriate provider page based on type
+            if (providerType === 'testing') {
+              navigate('/provider/submit')
+            } else {
+              navigate('/real-provider/submit')
+            }
             break
           case 'ADJUDICATOR':
             navigate('/adjudicator/queue')
@@ -106,9 +122,9 @@ const Login: React.FC = () => {
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary-400 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
         </div>
-        
+
         {/* Grid Pattern */}
-        <div 
+        <div
           className="absolute inset-0 opacity-5"
           style={{
             backgroundImage: `linear-gradient(to right, white 1px, transparent 1px),
@@ -180,6 +196,35 @@ const Login: React.FC = () => {
             <p className="text-neutral-500">Sign in to AegisClaim to continue</p>
           </div>
 
+          {/* Provider Type Selector */}
+          <div className="mb-6 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+            <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider mb-3">Provider Mode</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setProviderTypeState('testing')}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${providerType === 'testing'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                  }`}
+              >
+                <Beaker className="w-4 h-4" />
+                Testing (OCR)
+              </button>
+              <button
+                type="button"
+                onClick={() => setProviderTypeState('real')}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${providerType === 'real'
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                  }`}
+              >
+                <Users className="w-4 h-4" />
+                Production
+              </button>
+            </div>
+          </div>
+
           {/* Error Message */}
           {errors.root && (
             <div className="mb-6 p-4 bg-danger-50 border border-danger-200 rounded-xl flex items-start gap-3 animate-fade-in">
@@ -207,8 +252,8 @@ const Login: React.FC = () => {
                     w-full pl-11 pr-4 py-3 bg-white border rounded-lg text-sm
                     placeholder:text-neutral-400 transition-all duration-150
                     focus:outline-none focus:ring-[3px] focus:ring-primary-500/25
-                    ${errors.email 
-                      ? 'border-danger-300 focus:border-danger-500' 
+                    ${errors.email
+                      ? 'border-danger-300 focus:border-danger-500'
                       : 'border-neutral-200 hover:border-neutral-300 focus:border-primary-500'
                     }
                   `}
@@ -236,8 +281,8 @@ const Login: React.FC = () => {
                     w-full pl-11 pr-11 py-3 bg-white border rounded-lg text-sm
                     placeholder:text-neutral-400 transition-all duration-150
                     focus:outline-none focus:ring-[3px] focus:ring-primary-500/25
-                    ${errors.password 
-                      ? 'border-danger-300 focus:border-danger-500' 
+                    ${errors.password
+                      ? 'border-danger-300 focus:border-danger-500'
                       : 'border-neutral-200 hover:border-neutral-300 focus:border-primary-500'
                     }
                   `}

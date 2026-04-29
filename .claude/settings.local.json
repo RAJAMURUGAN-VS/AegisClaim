@@ -12,7 +12,8 @@
       "Bash(python -c \"from api.main import app; print\\('Backend imports successfully'\\)\")",
       "Bash(python -c \"from api.routes.auth_routes import router; print\\('Auth routes import successfully'\\)\")",
       "Bash(python *)",
-      "Bash(cd C:/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow/backend)"
+      "Bash(cd C:/Users/RAJA MURUGAN VS/Desktop/AegisClaim/pa-workflow/backend)",
+      "Bash(npx vitest *)"
     ]
   }
 }

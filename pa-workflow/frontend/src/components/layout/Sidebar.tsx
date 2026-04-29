@@ -17,6 +17,7 @@ import {
   PlusCircle,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useProviderType } from '../../context/ProviderContext'
 
 interface NavItem {
   path: string
@@ -40,30 +41,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onMobileClose,
 }) => {
   const { user, logout } = useAuth()
+  const { providerType } = useProviderType()
   const location = useLocation()
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
 
-  const getNavItems = (): NavItem[] => {
+  const getNavItems = (providerType: 'testing' | 'real'): NavItem[] => {
+
+    const providerBase = providerType === 'real' ? '/real-provider' : '/provider'
+
     switch (user?.role) {
       case 'PROVIDER':
         return [
-          { path: '/provider/dashboard', label: 'Dashboard', icon: Home },
+          { path: `${providerBase}/dashboard`, label: 'Dashboard', icon: Home },
           {
-            path: '/provider/requests',
+            path: `${providerBase}/requests`,
             label: 'PA Requests',
             icon: ClipboardList,
             children: [
-              { path: '/provider/submit', label: 'Submit New', icon: PlusCircle },
-              { path: '/provider/status', label: 'My Requests', icon: ClipboardList },
+              { path: `${providerBase}/submit`, label: 'Submit New', icon: PlusCircle },
+              { path: `${providerBase}/status`, label: 'My Requests', icon: ClipboardList },
             ],
           },
         ]
       case 'ADJUDICATOR':
         return [
           { path: '/adjudicator/dashboard', label: 'Dashboard', icon: Home },
-          { 
-            path: '/adjudicator/queue', 
-            label: 'Review Queue', 
+          {
+            path: '/adjudicator/queue',
+            label: 'Review Queue',
             icon: List,
             badge: 3,
           },
@@ -80,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }
 
-  const navItems = getNavItems()
+  const navItems = getNavItems(providerType)
 
   const toggleMenu = (path: string) => {
     setExpandedMenus((prev) =>
@@ -140,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
         )}
-        
+
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.path}>
@@ -150,8 +155,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => toggleMenu(item.path)}
                     className={`
                       w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group
-                      ${isActive(item.path) 
-                        ? 'bg-primary-700 text-white' 
+                      ${isActive(item.path)
+                        ? 'bg-primary-700 text-white'
                         : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                       }
                     `}
@@ -160,12 +165,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {!isCollapsed && (
                       <>
                         <span className="ml-3 flex-1 text-sm font-medium text-left">{item.label}</span>
-                        <ChevronRight 
-                          className={`w-4 h-4 transition-transform duration-200 ${expandedMenus.includes(item.path) ? 'rotate-90' : ''}`} 
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform duration-200 ${expandedMenus.includes(item.path) ? 'rotate-90' : ''}`}
                         />
                       </>
                     )}
-                    
+
                     {/* Tooltip for collapsed */}
                     {isCollapsed && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-neutral-900 text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
@@ -173,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </button>
-                  
+
                   {/* Submenu */}
                   {!isCollapsed && expandedMenus.includes(item.path) && (
                     <ul className="mt-1 ml-4 pl-4 border-l-2 border-primary-800 space-y-1">
@@ -182,10 +187,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <NavLink
                             to={child.path}
                             className={({ isActive: childActive }) =>
-                              `flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                                childActive
-                                  ? 'bg-primary-700 text-white'
-                                  : 'text-primary-400 hover:bg-primary-800 hover:text-white'
+                              `flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 ${childActive
+                                ? 'bg-primary-700 text-white'
+                                : 'text-primary-400 hover:bg-primary-800 hover:text-white'
                               }`
                             }
                           >
@@ -201,10 +205,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <NavLink
                   to={item.path}
                   className={({ isActive: active }) =>
-                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                      active
-                        ? 'bg-primary-700 text-white'
-                        : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${active
+                      ? 'bg-primary-700 text-white'
+                      : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                     }`
                   }
                 >
@@ -219,14 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </>
                   )}
-                  
+
                   {/* Tooltip for collapsed */}
                   {isCollapsed && (
                     <div className="absolute left-full ml-2 px-2 py-1 bg-neutral-900 text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
                       {item.label}
                     </div>
                   )}
-                  
+
                   {/* Active indicator */}
                   {!isCollapsed && isActive(item.path) && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
@@ -250,10 +253,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <NavLink
               to="/preferences"
               className={({ isActive }) =>
-                `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                  isActive
-                    ? 'bg-primary-700 text-white'
-                    : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${isActive
+                  ? 'bg-primary-700 text-white'
+                  : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                 }`
               }
             >
@@ -274,10 +276,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <NavLink
               to="/notifications"
               className={({ isActive }) =>
-                `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                  isActive
-                    ? 'bg-primary-700 text-white'
-                    : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${isActive
+                  ? 'bg-primary-700 text-white'
+                  : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                 }`
               }
             >
@@ -316,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </div>
-          
+
           {!isCollapsed && (
             <button
               onClick={logout}
@@ -326,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Logout
             </button>
           )}
-          
+
           {isCollapsed && (
             <button
               onClick={logout}
@@ -362,7 +363,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={onMobileClose}
           />
         )}
-        
+
         {/* Mobile Drawer */}
         <aside
           className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-primary-900 text-white flex flex-col z-50 transform transition-transform duration-300 ease-smooth ${mobileSidebarClasses}`}
@@ -382,14 +383,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto px-3 py-6">
             <div className="px-3 mb-2">
               <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider">
                 Main Menu
               </span>
             </div>
-            
+
             <ul className="space-y-1">
               {navItems.map((item) => (
                 <li key={item.path}>
@@ -399,19 +400,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => toggleMenu(item.path)}
                         className={`
                           w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200
-                          ${isActive(item.path) 
-                            ? 'bg-primary-700 text-white' 
+                          ${isActive(item.path)
+                            ? 'bg-primary-700 text-white'
                             : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                           }
                         `}
                       >
                         <item.icon className="w-5 h-5" />
                         <span className="ml-3 flex-1 text-sm font-medium text-left">{item.label}</span>
-                        <ChevronRight 
-                          className={`w-4 h-4 transition-transform duration-200 ${expandedMenus.includes(item.path) ? 'rotate-90' : ''}`} 
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform duration-200 ${expandedMenus.includes(item.path) ? 'rotate-90' : ''}`}
                         />
                       </button>
-                      
+
                       {expandedMenus.includes(item.path) && (
                         <ul className="mt-1 ml-4 pl-4 border-l-2 border-primary-800 space-y-1">
                           {item.children.map((child) => (
@@ -420,10 +421,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 to={child.path}
                                 onClick={onMobileClose}
                                 className={({ isActive: childActive }) =>
-                                  `flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                                    childActive
-                                      ? 'bg-primary-700 text-white'
-                                      : 'text-primary-400 hover:bg-primary-800 hover:text-white'
+                                  `flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 ${childActive
+                                    ? 'bg-primary-700 text-white'
+                                    : 'text-primary-400 hover:bg-primary-800 hover:text-white'
                                   }`
                                 }
                               >
@@ -440,10 +440,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       to={item.path}
                       onClick={onMobileClose}
                       className={({ isActive: active }) =>
-                        `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 relative ${
-                          active
-                            ? 'bg-primary-700 text-white'
-                            : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                        `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 relative ${active
+                          ? 'bg-primary-700 text-white'
+                          : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                         }`
                       }
                     >
@@ -462,7 +461,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </li>
               ))}
             </ul>
-            
+
             <div className="mt-8 px-3 mb-2">
               <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider">
                 Settings
@@ -474,10 +473,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   to="/preferences"
                   onClick={onMobileClose}
                   className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? 'bg-primary-700 text-white'
-                        : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 ${isActive
+                      ? 'bg-primary-700 text-white'
+                      : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                     }`
                   }
                 >
@@ -490,10 +488,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   to="/notifications"
                   onClick={onMobileClose}
                   className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? 'bg-primary-700 text-white'
-                        : 'text-primary-300 hover:bg-primary-800 hover:text-white'
+                    `flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 ${isActive
+                      ? 'bg-primary-700 text-white'
+                      : 'text-primary-300 hover:bg-primary-800 hover:text-white'
                     }`
                   }
                 >
@@ -506,7 +503,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
             </ul>
           </div>
-          
+
           {/* Mobile User Card */}
           <div className="p-4 border-t border-primary-800">
             <div className="bg-primary-800 rounded-xl p-4">
