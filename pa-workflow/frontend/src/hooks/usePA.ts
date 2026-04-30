@@ -222,3 +222,64 @@ export const useDocumentRequirements = (treatmentType: string | undefined) => {
     enabled: !!treatmentType,
   })
 }
+
+// ============== Dynamic Data Hooks ==============
+
+// Hook to fetch all users from database
+export const useUsers = () => {
+  return useQuery<any[], Error>({
+    queryKey: ['users', 'all'],
+    queryFn: () => paService.getAllUsers(),
+  })
+}
+
+// Hook to fetch all payers from database
+export const useAllPayers = () => {
+  return useQuery<Payer[], Error>({
+    queryKey: ['payers', 'database', 'all'],
+    queryFn: () => paService.getAllPayers(),
+  })
+}
+
+// Hook to fetch plans by payer from database
+export const usePlansByPayerDB = (payerId: string | undefined) => {
+  return useQuery<Plan[], Error>({
+    queryKey: ['plans', 'database', payerId],
+    queryFn: () => paService.getPlansByPayerId(payerId!),
+    enabled: !!payerId,
+  })
+}
+
+// Hook to fetch procedures
+export const useProcedures = (planId?: string) => {
+  return useQuery<any[], Error>({
+    queryKey: ['procedures', 'database', planId],
+    queryFn: () => paService.getProcedures(planId),
+  })
+}
+
+// Hook to fetch required documents
+export const useDocumentsRequired = (planId?: string) => {
+  return useQuery<any[], Error>({
+    queryKey: ['documents', 'database', planId],
+    queryFn: () => paService.getDocumentsRequired(planId),
+  })
+}
+
+// Hook to fetch ICD codes with search
+export const useICDCodes = (search?: string) => {
+  return useQuery<any[], Error>({
+    queryKey: ['icd-codes', 'database', search],
+    queryFn: () => paService.getICDCodes(search),
+    enabled: !!search,
+  })
+}
+
+// Hook to fetch CPT codes with search
+export const useCPTCodes = (search?: string) => {
+  return useQuery<any[], Error>({
+    queryKey: ['cpt-codes', 'database', search],
+    queryFn: () => paService.getCPTCodes(search),
+    enabled: !!search,
+  })
+}

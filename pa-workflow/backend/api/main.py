@@ -6,7 +6,7 @@ from core.database import connect_db, disconnect_db, connect_mongo, disconnect_m
 from core.redis_client import connect_redis, disconnect_redis
 from models.mongo_models import create_indexes
 from core.config import settings
-from .routes import auth_routes
+from .routes import auth_routes, data_routes
 try:
     from .routes import pa_routes
 except ImportError:
@@ -58,4 +58,5 @@ async def read_root():
 if pa_routes:
     app.include_router(pa_routes.router, prefix="/api/v1", tags=["Prior Authorization"])
 app.include_router(auth_routes.router, prefix="/api/v1", tags=["Authentication"])
+app.include_router(data_routes.router, prefix="/api/v1", tags=["Data Reference"])
 # app.include_router(webhook_routes.router, prefix="/api/v1/webhooks", tags=["Webhooks"])

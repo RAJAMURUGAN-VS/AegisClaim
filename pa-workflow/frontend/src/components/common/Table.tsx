@@ -36,6 +36,22 @@ export function Table<T>({
     }
   }
 
+  const renderCellValue = (value: React.ReactNode) => {
+    if (React.isValidElement(value)) {
+      return value
+    }
+
+    if (value === null || value === undefined) {
+      return ''
+    }
+
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return value
+    }
+
+    return String(value)
+  }
+
   // Loading state - skeleton rows
   if (loading) {
     return (
@@ -124,7 +140,7 @@ export function Table<T>({
                       column.align
                     )}`}
                   >
-                    {typeof value === 'object' ? JSON.stringify(value) : (value as React.ReactNode)}
+                    {renderCellValue(value)}
                   </td>
                 )
               })}

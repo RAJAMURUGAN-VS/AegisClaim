@@ -140,6 +140,51 @@ const ScoreCell: React.FC<{ score: number }> = ({ score }) => {
   )
 }
 
+const getHoursInQueue = (submittedAt: string) => {
+  const submittedTime = new Date(submittedAt).getTime()
+  const diffMs = Date.now() - submittedTime
+  return Number.isFinite(diffMs) ? Math.max(0, diffMs / (1000 * 60 * 60)) : 0
+}
+
+const normalizeQueueItem = (item: any): ReviewQueueItem => ({
+  id: String(item.pa_id ?? item.id ?? ''),
+  paId: String(item.pa_id ?? item.id ?? ''),
+  patientId: String(item.patient_id ?? item.patientId ?? 'Unknown'),
+  patientName: String(item.patient_name ?? item.patientName ?? 'Unknown Patient'),
+  submittedAt: String(item.created_at ?? item.submittedAt ?? new Date().toISOString()),
+  score: Number(item.final_score ?? item.score ?? 0),
+  riskFlag: (item.risk_flag ?? item.riskFlag ?? 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
+  payer: String(item.payer ?? 'Unknown Payer'),
+  payerCode: String(item.payer_code ?? item.payerCode ?? '-'),
+  plan: String(item.plan ?? 'Unknown Plan'),
+  status: String(item.status ?? 'REVIEW'),
+  reviewedAt: item.reviewed_at ?? item.reviewedAt,
+  hoursInQueue:
+    Number(item.hours_in_queue ?? item.hoursInQueue) ||
+    getHoursInQueue(String(item.created_at ?? item.submittedAt ?? new Date().toISOString())),
+})
+
+const summarizeQueue = (items: ReviewQueueItem[]): QueueSummary => {
+  const now = Date.now()
+  const twelveHoursMs = 12 * 60 * 60 * 1000
+  const today = new Date().toDateString()
+
+  return {
+    totalInQueue: items.length,
+    highRisk: items.filter((item) => item.riskFlag === 'HIGH').length,
+    awaitingOver12Hours: items.filter((item) => {
+      const submittedTime = new Date(item.submittedAt).getTime()
+      return Number.isFinite(submittedTime) && now - submittedTime > twelveHoursMs
+    }).length,
+    reviewedToday: items.filter((item) => {
+      if (!item.reviewedAt) {
+        return false
+      }
+      return new Date(String(item.reviewedAt)).toDateString() === today
+    }).length,
+  }
+}
+
 const ReviewQueue: React.FC = () => {
   const navigate = useNavigate()
 
@@ -173,16 +218,31 @@ const ReviewQueue: React.FC = () => {
       if (filters.dateTo) params.date_to = filters.dateTo
       if (filters.patientId) params.patient_id = filters.patientId
 
-      const response = await api.get<{
-        items: ReviewQueueItem[]
-        summary: QueueSummary
-      }>('/pa/queue/review', { params })
+      const response = await api.get<
+        ReviewQueueItem[] | { items?: ReviewQueueItem[]; summary?: QueueSummary }
+      >('/pa/queue/review', { params })
 
-      setQueueItems(response.data.items)
-      setSummary(response.data.summary)
+      const payload = response.data
+      const items = Array.isArray(payload)
+        ? payload.map(normalizeQueueItem)
+        : (payload.items ?? []).map(normalizeQueueItem)
+
+      setQueueItems(items)
+      setSummary(
+        payload && !Array.isArray(payload) && payload.summary
+          ? payload.summary
+          : summarizeQueue(items)
+      )
       setLastRefresh(new Date())
     } catch (error) {
       console.error('Failed to fetch queue data:', error)
+      setQueueItems([])
+      setSummary({
+        totalInQueue: 0,
+        highRisk: 0,
+        awaitingOver12Hours: 0,
+        reviewedToday: 0,
+      })
     } finally {
       setLoading(false)
     }

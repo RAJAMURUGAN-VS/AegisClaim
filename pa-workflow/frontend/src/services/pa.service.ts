@@ -309,4 +309,58 @@ export const paService = {
       throw error
     }
   },
+
+  // ============== Dynamic Data Methods ==============
+  
+  // Get all users
+  getAllUsers: async (): Promise<any[]> => {
+    const response = await api.get<any[]>('/data/users')
+    return response.data
+  },
+
+  // Get all payers (from database)
+  getAllPayers: async (): Promise<Payer[]> => {
+    const response = await api.get<Payer[]>('/data/payers')
+    return response.data
+  },
+
+  // Get plans by payer ID (from database)
+  getPlansByPayerId: async (payerId: string): Promise<Plan[]> => {
+    const response = await api.get<Plan[]>('/data/plans', {
+      params: { payer_id: payerId },
+    })
+    return response.data
+  },
+
+  // Get procedures, optionally filtered by plan
+  getProcedures: async (planId?: string): Promise<any[]> => {
+    const response = await api.get<any[]>('/data/procedures', {
+      params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get required documents, optionally filtered by plan
+  getDocumentsRequired: async (planId?: string): Promise<any[]> => {
+    const response = await api.get<any[]>('/data/documents-required', {
+      params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get ICD codes with optional search
+  getICDCodes: async (search?: string): Promise<any[]> => {
+    const response = await api.get<any[]>('/data/icd-codes', {
+      params: search ? { search } : {},
+    })
+    return response.data
+  },
+
+  // Get CPT codes with optional search
+  getCPTCodes: async (search?: string): Promise<any[]> => {
+    const response = await api.get<any[]>('/data/cpt-codes', {
+      params: search ? { search } : {},
+    })
+    return response.data
+  },
 }
