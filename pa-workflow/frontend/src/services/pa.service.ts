@@ -311,7 +311,7 @@ export const paService = {
   },
 
   // ============== Dynamic Data Methods ==============
-  
+
   // Get all users
   getAllUsers: async (): Promise<any[]> => {
     const response = await api.get<any[]>('/data/users')
@@ -361,6 +361,12 @@ export const paService = {
     const response = await api.get<any[]>('/data/cpt-codes', {
       params: search ? { search } : {},
     })
+    return response.data
+  },
+
+  // Get plans for the current provider from user_policies table
+  getProviderPlans: async (): Promise<Plan[]> => {
+    const response = await api.get<Plan[]>('/data/provider-plans')
     return response.data
   },
 }

@@ -15,7 +15,7 @@ import {
   Loader2,
   Calendar,
 } from 'lucide-react'
-import { useSubmitPA, usePayers, usePlansByPayer } from '../../hooks/usePA'
+import { useSubmitPA, usePayers, usePlansByPayer, useProviderPlans } from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
@@ -102,10 +102,12 @@ const PASubmissionForm: React.FC = () => {
   const icd10Codes = watch('icd10Codes') || []
   const cptCodes = watch('cptCodes') || []
   const documents = watch('documents') || []
+  const selectedPlanId = watch('planId')
 
   const submitPAMutation = useSubmitPA()
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
   const { data: plans, isLoading: isLoadingPlans } = usePlansByPayer(selectedPayerId)
+  const { data: providerPlans = [], isLoading: isLoadingProviderPlans } = useProviderPlans()
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -415,43 +417,68 @@ const PASubmissionForm: React.FC = () => {
         )}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Controller
-          name="payerId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              label="Insurance Payer"
-              value={field.value}
-              onChange={(value) => {
-                field.onChange(value)
-                setValue('planId', '')
-              }}
-              options={payers?.map((p) => ({ value: p.id, label: p.name })) || []}
-              placeholder={isLoadingPayers ? 'Loading payers...' : 'Select a payer'}
-              error={errors.payerId?.message}
-              loading={isLoadingPayers}
-              required
-            />
-          )}
-        />
+      <div className={`grid gap-6 ${providerPlans.length === 0 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+        {providerPlans.length === 0 && (
+          <Controller
+            name="payerId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Insurance Payer"
+                value={field.value}
+                onChange={(value) => {
+                  field.onChange(value)
+                  setValue('planId', '')
+                }}
+                options={payers?.map((p) => ({ value: p.id, label: p.name })) || []}
+                placeholder={isLoadingPayers ? 'Loading payers...' : 'Select a payer'}
+                error={errors.payerId?.message}
+                loading={isLoadingPayers}
+                required
+              />
+            )}
+          />
+        )}
 
         <Controller
           name="planId"
           control={control}
-          render={({ field }) => (
-            <Select
-              label="Insurance Plan"
-              value={field.value}
-              onChange={field.onChange}
-              options={plans?.map((p) => ({ value: p.id, label: p.name })) || []}
-              placeholder={!selectedPayerId ? 'Select payer first' : isLoadingPlans ? 'Loading plans...' : 'Select a plan'}
-              error={errors.planId?.message}
-              loading={isLoadingPlans}
-              disabled={!selectedPayerId}
-              required
-            />
-          )}
+          render={({ field }) => {
+            // Use provider plans if available, otherwise use payer-based plans
+            const planOptions = providerPlans.length > 0
+              ? providerPlans
+              : plans
+
+            // Auto-populate payer when plan is selected from provider plans
+            const handlePlanChange = (value: string) => {
+              field.onChange(value)
+              if (providerPlans.length > 0) {
+                const selectedPlan = providerPlans.find(p => p.id === value)
+                if (selectedPlan && selectedPlan.payerId) {
+                  setValue('payerId', selectedPlan.payerId)
+                }
+              }
+            }
+
+            return (
+              <Select
+                label={providerPlans.length > 0 ? 'Your Insurance Plans' : 'Insurance Plan'}
+                value={field.value}
+                onChange={handlePlanChange}
+                options={planOptions?.map((p) => ({ value: p.id, label: p.name })) || []}
+                placeholder={
+                  isLoadingProviderPlans ? 'Loading your plans...'
+                    : providerPlans.length === 0 && !selectedPayerId ? 'Select payer first'
+                      : isLoadingPlans ? 'Loading plans...'
+                        : 'Select a plan'
+                }
+                error={errors.planId?.message}
+                loading={providerPlans.length > 0 ? isLoadingProviderPlans : isLoadingPlans}
+                disabled={providerPlans.length === 0 && !selectedPayerId}
+                required
+              />
+            )
+          }}
         />
       </div>
 

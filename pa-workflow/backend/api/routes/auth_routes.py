@@ -5,8 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import bcrypt
+import logging
 
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -110,12 +116,95 @@ def verify_token(token: str) -> Optional[dict]:
         return None
 
 
+def get_db_connection():
+    """Get a connection to the Neon PostgreSQL database."""
+    try:
+        conn = psycopg2.connect(
+            host=settings.POSTGRES_HOST,
+            database=settings.POSTGRES_DB,
+            user=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            port=settings.POSTGRES_PORT,
+            sslmode="require",
+            channel_binding="require"
+        )
+        return conn
+    except Exception as e:
+        logger.error(f"[DB] Connection error: {type(e).__name__}: {e}")
+        return None
+
+
 def authenticate_user(email: str, password: str):
+    """
+    Authenticate user against the database.
+    First tries database, falls back to DEMO_USERS for development.
+    """
+    logger.info(f"[AUTH] Login attempt for email: {email}")
+    
+    # Try database authentication first
+    try:
+        conn = get_db_connection()
+        if conn:
+            logger.info(f"[AUTH] Database connection successful")
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT id, user_id, email, name, role, organization, is_active, password_hash FROM users WHERE email = %s AND is_active = true",
+                (email.lower(),)
+            )
+            user_row = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            if user_row:
+                logger.info(f"[AUTH] User found in database: {user_row['email']}")
+                # Verify bcrypt password
+                try:
+                    password_hash = user_row['password_hash']
+                    logger.debug(f"[AUTH] Password hash type: {type(password_hash)}, length: {len(password_hash) if password_hash else 'None'}")
+                    logger.debug(f"[AUTH] Password hash starts with: {str(password_hash)[:30] if password_hash else 'None'}")
+                    
+                    if not password_hash:
+                        logger.warning(f"[AUTH] User {email} has null password_hash")
+                        return None
+                    
+                    # bcrypt.checkpw expects bytes for both arguments
+                    check_result = bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+                    logger.info(f"[AUTH] Password check result: {check_result}")
+                    
+                    if check_result:
+                        logger.info(f"[AUTH] Authentication successful for {email}")
+                        return {
+                            "id": str(user_row['id']),
+                            "email": user_row['email'],
+                            "name": user_row['name'],
+                            "role": user_row['role'],
+                            "organization": user_row['organization'] or "",
+                            "source": "database"
+                        }
+                    else:
+                        logger.warning(f"[AUTH] Password mismatch for {email}")
+                        return None
+                except Exception as e:
+                    logger.error(f"[AUTH] Error during bcrypt verification for {email}: {type(e).__name__}: {e}")
+                    return None
+            else:
+                logger.warning(f"[AUTH] User not found or not active: {email.lower()}")
+        else:
+            logger.warning(f"[AUTH] Database connection failed")
+    except Exception as e:
+        logger.error(f"[AUTH] Database error: {type(e).__name__}: {e}")
+    
+    # Fallback to DEMO_USERS for development
+    logger.info(f"[AUTH] Attempting fallback to DEMO_USERS for {email}")
     user = DEMO_USERS.get(email.lower())
     if not user:
+        logger.warning(f"[AUTH] User not found in DEMO_USERS: {email.lower()}")
         return None
     if user["password"] != password:
+        logger.warning(f"[AUTH] Password mismatch in DEMO_USERS for {email}")
         return None
+    
+    logger.info(f"[AUTH] Authentication successful via DEMO_USERS for {email}")
     return user
 
 
@@ -140,7 +229,31 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Us
     if user_id is None:
         raise credentials_exception
 
-    # Find user by ID
+    # Try to get user from database first
+    try:
+        conn = get_db_connection()
+        if conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT id, user_id, email, name, role, organization, is_active FROM users WHERE id = %s AND is_active = true",
+                (int(user_id),)
+            )
+            user_row = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            if user_row:
+                return User(
+                    id=str(user_row['id']),
+                    email=user_row['email'],
+                    name=user_row['name'],
+                    role=user_row['role'],
+                    organization=user_row['organization'] or "",
+                )
+    except Exception:
+        pass
+
+    # Fallback to DEMO_USERS
     user = None
     for u in DEMO_USERS.values():
         if u["id"] == user_id:
@@ -163,11 +276,16 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme)) -> Us
 async def login(credentials: LoginRequest):
     """
     Authenticate user and return JWT token.
-    Demo credentials:
+    Demo credentials (plain password):
     - provider@example.com / password
     - adjudicator@example.com / password
     - admin@example.com / password
     - director@example.com / password
+    
+    Database provider accounts (from user_policies):
+    - anjali.mehta@provider.local / hvfkm0TMsZm46iwX
+    - arun.kumar@provider.local / LpziXaxf6wFZ3NhX
+    - And 18 other provider accounts created from user_policies
     """
     user = authenticate_user(credentials.email, credentials.password)
     if not user:

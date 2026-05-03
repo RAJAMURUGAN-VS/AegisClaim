@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # PostgreSQL Database
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_DB: str = "aegisclaim"
     POSTGRES_PORT: int = 5432
     DATABASE_URL: PostgresDsn | None = None
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     def __init__(self, **values):
         super().__init__(**values)
         if not self.DATABASE_URL:
-            self.DATABASE_URL = f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            self.DATABASE_URL = f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # MongoDB
     MONGO_URI: str = "mongodb://localhost:27017/aegisclaim"

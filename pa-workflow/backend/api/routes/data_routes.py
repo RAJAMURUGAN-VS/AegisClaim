@@ -18,7 +18,7 @@ def get_db_connection():
     """Get a connection to the Neon PostgreSQL database."""
     try:
         conn = psycopg2.connect(
-            host=settings.POSTGRES_SERVER,
+            host=settings.POSTGRES_HOST,
             database=settings.POSTGRES_DB,
             user=settings.POSTGRES_USER,
             password=settings.POSTGRES_PASSWORD,
@@ -293,4 +293,55 @@ async def get_cpt_codes(search: Optional[str] = None, current_user: User = Depen
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching CPT codes"
+        )
+
+
+@router.get("/data/provider-plans")
+async def get_provider_plans(current_user: User = Depends(get_current_user)):
+    """
+    Get plans for the currently logged-in provider from user_policies table.
+    This endpoint returns only the plans that the provider has in their policy records.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get the current user's name from the users table
+        cur.execute("""
+            SELECT name FROM users WHERE id = %s AND role = 'PROVIDER'
+        """, (int(current_user.id),))
+        
+        user_result = cur.fetchone()
+        if not user_result:
+            cur.close()
+            conn.close()
+            return []
+        
+        user_name = user_result['name']
+        
+        # Query user_policies for the provider and join with plans table
+        cur.execute("""
+            SELECT DISTINCT 
+                   p.plan_id as id,
+                   p.payer_id as "payerId",
+                   p.plan_name as name,
+                   p.plan_id as "planCode",
+                   'PPO' as "planType",
+                   true as "isActive"
+            FROM user_policies up
+            INNER JOIN plans p ON up.plan_id = p.plan_id
+            WHERE up.user_name = %s
+            ORDER BY p.plan_name
+        """, (user_name,))
+        
+        plans = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        return [dict(row) for row in plans]
+    except Exception as e:
+        logger.error(f"Error fetching provider plans: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching provider plans"
         )

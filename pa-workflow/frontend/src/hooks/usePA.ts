@@ -283,3 +283,11 @@ export const useCPTCodes = (search?: string) => {
     enabled: !!search,
   })
 }
+
+// Hook to fetch plans for the current provider from user_policies
+export const useProviderPlans = () => {
+  return useQuery<Plan[], Error>({
+    queryKey: ['plans', 'provider'],
+    queryFn: () => paService.getProviderPlans(),
+  })
+}
