@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
-  Loader2,
   Calendar,
 } from 'lucide-react'
 import { useSubmitPA, usePayers, usePlansByPayer, useProviderPlans } from '../../hooks/usePA'
@@ -102,7 +101,6 @@ const PASubmissionForm: React.FC = () => {
   const icd10Codes = watch('icd10Codes') || []
   const cptCodes = watch('cptCodes') || []
   const documents = watch('documents') || []
-  const selectedPlanId = watch('planId')
 
   const submitPAMutation = useSubmitPA()
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
@@ -314,7 +312,7 @@ const PASubmissionForm: React.FC = () => {
               className="absolute left-0 top-1/2 h-1 bg-gradient-to-r from-primary-600 to-primary-500 -translate-y-1/2 transition-all duration-500 rounded-full"
               style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
             />
-            {steps.map((step, index) => {
+            {steps.map((step) => {
               const isCompleted = step.id < currentStep
               const isCurrent = step.id === currentStep
 

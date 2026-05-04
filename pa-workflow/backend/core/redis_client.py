@@ -16,8 +16,11 @@ async def connect_redis():
         )
         await redis_pool.ping()
         print("Redis connection successful.")
+        return True
     except Exception as e:
         print(f"Redis connection failed: {e}")
+        redis_pool = None
+        return False
 
 async def disconnect_redis():
     """Close Redis connection pool."""

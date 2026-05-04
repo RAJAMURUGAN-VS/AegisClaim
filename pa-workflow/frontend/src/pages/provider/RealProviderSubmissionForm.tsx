@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
-  Loader2,
   Calendar,
 } from 'lucide-react'
 import { useSubmitPA, usePayers, usePlansByPayer, useProviderPlans } from '../../hooks/usePA'
@@ -93,7 +92,6 @@ const RealProviderSubmissionForm: React.FC = () => {
   const icd10Codes = watch('icd10Codes') || []
   const cptCodes = watch('cptCodes') || []
   const documents = watch('documents') || []
-  const selectedPlanId = watch('planId')
 
   const submitPAMutation = useSubmitPA()
 

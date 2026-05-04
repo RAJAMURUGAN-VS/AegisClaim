@@ -64,8 +64,10 @@ async def connect_mongo():
     try:
         await mongo_client.admin.command('ping')
         print("MongoDB connection successful.")
+        return True
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
+        return False
 
 
 async def disconnect_mongo():

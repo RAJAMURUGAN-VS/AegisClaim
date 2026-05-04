@@ -18,16 +18,24 @@ async def lifespan(app: FastAPI):
     Handle application startup and shutdown events.
     """
     await connect_db()
-    await connect_mongo()
-    await connect_redis()
-    
-    # Create MongoDB indexes
-    # This needs a bit of a workaround to get the db instance during startup
-    from core.database import get_mongo_client
-    mongo_client = get_mongo_client()
-    db_name = settings.MONGO_URI.split("/")[-1].split("?")[0]
-    mongo_db = mongo_client[db_name]
-    await create_indexes(mongo_db)
+    mongo_connected = await connect_mongo()
+    redis_connected = await connect_redis()
+
+    if mongo_connected:
+        # Create MongoDB indexes only when MongoDB is reachable.
+        from core.database import get_mongo_client
+        mongo_client = get_mongo_client()
+        db_name = settings.MONGO_URI.split("/")[-1].split("?")[0]
+        mongo_db = mongo_client[db_name]
+        try:
+            await create_indexes(mongo_db)
+        except Exception as e:
+            print(f"MongoDB index creation skipped: {e}")
+    else:
+        print("MongoDB indexes skipped because MongoDB is unavailable.")
+
+    if not redis_connected:
+        print("Redis-dependent features will be disabled until Redis is available.")
 
     yield
     await disconnect_db()
