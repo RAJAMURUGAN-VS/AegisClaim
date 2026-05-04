@@ -23,6 +23,54 @@ export interface Plan {
   planCode: string
   planType: string
   isActive: boolean
+  coverageLimit?: number
+  waitingPeriodDays?: number
+  maxClaimsPerYear?: number
+}
+
+export interface PlanDetails extends Plan {}
+
+export interface WaitingPeriod {
+  id: number
+  planId: string
+  diseaseName: string
+  waitingDays: number
+}
+
+export interface ExcludedProcedure {
+  id: number
+  planId: string
+  procedureName: string
+  planName?: string
+  category?: string
+  reason?: string
+}
+
+export interface StepTherapyRule {
+  id: number
+  planId: string
+  procedureName: string
+  requiredPrior: string
+  planName?: string
+}
+
+export interface Hospital {
+  id: string
+  payerId: string
+  name: string
+  city: string
+  state: string
+  pincode: string
+}
+
+export interface ClaimHistoryRow {
+  id: number
+  patientId: string
+  diagnosis: string
+  procedureName: string
+  claimDate: string
+  cost: number
+  hospitalName: string
 }
 
 // Document Upload Types
@@ -271,6 +319,14 @@ export const paService = {
     return response.data
   },
 
+  // Get a single plan's details
+  getPlanDetails: async (planId: string): Promise<PlanDetails | null> => {
+    const response = await api.get<PlanDetails | null>('/data/plan-details', {
+      params: { plan_id: planId },
+    })
+    return response.data
+  },
+
   // Get document requirements based on treatment type
   getDocumentRequirements: async (treatmentType: string): Promise<DocumentRequirements> => {
     const response = await api.get<DocumentRequirements>('/documents/requirements', {
@@ -344,6 +400,49 @@ export const paService = {
   getDocumentsRequired: async (planId?: string): Promise<any[]> => {
     const response = await api.get<any[]>('/data/documents-required', {
       params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get waiting periods, optionally filtered by plan
+  getWaitingPeriods: async (planId?: string): Promise<WaitingPeriod[]> => {
+    const response = await api.get<WaitingPeriod[]>('/data/waiting-periods', {
+      params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get excluded procedures, optionally filtered by plan
+  getExcludedProcedures: async (planId?: string): Promise<ExcludedProcedure[]> => {
+    const response = await api.get<ExcludedProcedure[]>('/data/excluded-procedures', {
+      params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get step therapy rules, optionally filtered by plan
+  getStepTherapy: async (planId?: string): Promise<StepTherapyRule[]> => {
+    const response = await api.get<StepTherapyRule[]>('/data/step-therapy', {
+      params: planId ? { plan_id: planId } : {},
+    })
+    return response.data
+  },
+
+  // Get network hospitals, optionally filtered by payer/search
+  getHospitals: async (payerId?: string, search?: string): Promise<Hospital[]> => {
+    const response = await api.get<Hospital[]>('/data/hospitals', {
+      params: {
+        ...(payerId ? { payer_id: payerId } : {}),
+        ...(search ? { search } : {}),
+      },
+    })
+    return response.data
+  },
+
+  // Get claim history rows
+  getClaimHistory: async (patientId?: string): Promise<ClaimHistoryRow[]> => {
+    const response = await api.get<ClaimHistoryRow[]>('/data/claims-history', {
+      params: patientId ? { patient_id: patientId } : {},
     })
     return response.data
   },

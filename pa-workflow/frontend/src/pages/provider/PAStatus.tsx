@@ -270,7 +270,7 @@ const PAStatus: React.FC = () => {
   const isOcrGenerating = () => {
     const generatingStatuses = ['SUBMITTED', 'PROCESSING', 'AGENT_PROCESSING', 'SCORING', 'IN_REVIEW']
     const hasOcrJson = !!getOcrJson()
-    return generatingStatuses.includes(paData.status) && !hasOcrJson
+    return !!paData && generatingStatuses.includes(paData.status) && !hasOcrJson
   }
 
   const getSubmittedAt = () => {

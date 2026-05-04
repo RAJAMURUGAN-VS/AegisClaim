@@ -301,6 +301,52 @@ export interface Plan {
   planCode: string
   planType: string
   isActive: boolean
+  coverageLimit?: number
+  waitingPeriodDays?: number
+  maxClaimsPerYear?: number
+}
+
+export interface WaitingPeriod {
+  id: number
+  planId: string
+  diseaseName: string
+  waitingDays: number
+}
+
+export interface ExcludedProcedure {
+  id: number
+  planId: string
+  procedureName: string
+  planName?: string
+  category?: string
+  reason?: string
+}
+
+export interface StepTherapyRule {
+  id: number
+  planId: string
+  procedureName: string
+  requiredPrior: string
+  planName?: string
+}
+
+export interface Hospital {
+  id: string
+  payerId: string
+  name: string
+  city: string
+  state: string
+  pincode: string
+}
+
+export interface ClaimHistoryRow {
+  id: number
+  patientId: string
+  diagnosis: string
+  procedureName: string
+  claimDate: string
+  cost: number
+  hospitalName: string
 }
 
 // Document Upload Types

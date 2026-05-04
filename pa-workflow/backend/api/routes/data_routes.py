@@ -345,3 +345,272 @@ async def get_provider_plans(current_user: User = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching provider plans"
         )
+
+
+@router.get("/data/plan-details")
+async def get_plan_details(plan_id: str, current_user: User = Depends(get_current_user)):
+    """Get plan metadata for a single plan."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur.execute(
+            """
+            SELECT plan_id as id,
+                   payer_id as "payerId",
+                   plan_name as name,
+                   plan_id as "planCode",
+                   coverage_limit as "coverageLimit",
+                   waiting_period_days as "waitingPeriodDays",
+                   max_claims_per_year as "maxClaimsPerYear",
+                   'PPO' as "planType",
+                   true as "isActive"
+            FROM plans
+            WHERE plan_id = %s
+            """,
+            (plan_id,)
+        )
+
+        plan = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        return dict(plan) if plan else None
+    except Exception as e:
+        logger.error(f"Error fetching plan details: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching plan details"
+        )
+
+
+@router.get("/data/waiting-periods")
+async def get_waiting_periods(plan_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Get waiting-period rules for a plan."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if plan_id:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       disease_name as "diseaseName",
+                       waiting_days as "waitingDays"
+                FROM waiting_periods
+                WHERE plan_id = %s
+                ORDER BY disease_name
+                """,
+                (plan_id,)
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       disease_name as "diseaseName",
+                       waiting_days as "waitingDays"
+                FROM waiting_periods
+                ORDER BY disease_name
+                """
+            )
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error fetching waiting periods: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching waiting periods"
+        )
+
+
+@router.get("/data/excluded-procedures")
+async def get_excluded_procedures(plan_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Get excluded procedures for a plan."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if plan_id:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       procedure_name as "procedureName",
+                       plan_name as "planName",
+                       category,
+                       reason
+                FROM excluded_procedures
+                WHERE plan_id = %s
+                ORDER BY procedure_name
+                """,
+                (plan_id,)
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       procedure_name as "procedureName",
+                       plan_name as "planName",
+                       category,
+                       reason
+                FROM excluded_procedures
+                ORDER BY procedure_name
+                """
+            )
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error fetching excluded procedures: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching excluded procedures"
+        )
+
+
+@router.get("/data/step-therapy")
+async def get_step_therapy(plan_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Get step-therapy rules for a plan."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if plan_id:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       procedure_name as "procedureName",
+                       required_prior as "requiredPrior",
+                       plan_name as "planName"
+                FROM step_therapy
+                WHERE plan_id = %s
+                ORDER BY procedure_name
+                """,
+                (plan_id,)
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id,
+                       plan_id as "planId",
+                       procedure_name as "procedureName",
+                       required_prior as "requiredPrior",
+                       plan_name as "planName"
+                FROM step_therapy
+                ORDER BY procedure_name
+                """
+            )
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error fetching step therapy rules: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching step therapy rules"
+        )
+
+
+@router.get("/data/hospitals")
+async def get_hospitals(payer_id: Optional[str] = None, search: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Get network hospitals from the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        query = """
+            SELECT id,
+                   payer_id as "payerId",
+                   name,
+                   city,
+                   state,
+                   pincode
+            FROM hospitals
+            WHERE 1 = 1
+        """
+        params: list[Any] = []
+
+        if payer_id:
+            query += " AND LOWER(payer_id) = LOWER(%s)"
+            params.append(payer_id)
+        if search:
+            query += " AND (name ILIKE %s OR city ILIKE %s OR state ILIKE %s)"
+            like = f"%{search}%"
+            params.extend([like, like, like])
+
+        query += " ORDER BY name LIMIT 100"
+        cur.execute(query, tuple(params))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error fetching hospitals: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching hospitals"
+        )
+
+
+@router.get("/data/claims-history")
+async def get_claims_history(patient_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Get claim history rows from the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if patient_id:
+            cur.execute(
+                """
+                SELECT id,
+                       patient_id as "patientId",
+                       diagnosis,
+                       procedure_name as "procedureName",
+                       claim_date as "claimDate",
+                       cost,
+                       hospital_name as "hospitalName"
+                FROM claims_history
+                WHERE patient_id = %s
+                ORDER BY claim_date DESC
+                LIMIT 200
+                """,
+                (patient_id,)
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id,
+                       patient_id as "patientId",
+                       diagnosis,
+                       procedure_name as "procedureName",
+                       claim_date as "claimDate",
+                       cost,
+                       hospital_name as "hospitalName"
+                FROM claims_history
+                ORDER BY claim_date DESC
+                LIMIT 200
+                """
+            )
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error fetching claims history: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching claims history"
+        )

@@ -105,60 +105,39 @@ const PAList: React.FC = () => {
   const fetchPAList = useCallback(async () => {
     try {
       setLoading(true)
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        page_size: pageSize,
-      }
+      const response = await api.get<Array<{
+        pa_id?: string
+        paId?: string
+        status: string
+        final_score?: number
+        risk_flag?: 'LOW' | 'MEDIUM' | 'HIGH'
+        created_at?: string
+      }>>('/pa/queue/review')
 
-      if (filters.status !== 'ALL') params.status = filters.status
-      if (filters.riskFlag !== 'ALL') params.risk_flag = filters.riskFlag
-      if (filters.dateFrom) params.date_from = filters.dateFrom
-      if (filters.dateTo) params.date_to = filters.dateTo
-      if (filters.search) params.search = filters.search
+      const rows = response.data.map((item, index) => ({
+        id: item.pa_id || item.paId || `queue-${index}`,
+        paId: item.pa_id || item.paId || `queue-${index}`,
+        patientId: 'N/A',
+        patientName: 'N/A',
+        payer: 'N/A',
+        status: item.status,
+        score: item.final_score ?? 0,
+        riskFlag: item.risk_flag ?? 'LOW',
+        decision: item.status === 'APPROVED' || item.status === 'DENIED' ? item.status : undefined,
+        submittedAt: item.created_at || new Date().toISOString(),
+        reviewedAt: undefined,
+      }))
 
-      const response = await api.get<{
-        items: PARequest[]
-        total: number
-      }>('/pa/list', { params })
-
-      setPAList(response.data.items)
-      setTotalCount(response.data.total)
+      setPAList(rows)
+      setTotalCount(rows.length)
     } catch (error) {
       console.error('Failed to fetch PA list:', error)
-      // Mock data for development
-      setPAList(generateMockPAData())
-      setTotalCount(156)
+      setPAList([])
+      setTotalCount(0)
     } finally {
       setLoading(false)
     }
   }, [currentPage, filters])
-
-  // Generate mock data
-  const generateMockPAData = (): PARequest[] => {
-    const statuses = ['PENDING', 'APPROVED', 'DENIED', 'REVIEW', 'PROCESSING']
-    const risks: ('LOW' | 'MEDIUM' | 'HIGH')[] = ['LOW', 'MEDIUM', 'HIGH']
-    const payers = ['Aetna', 'Blue Cross', 'Cigna', 'UnitedHealthcare', 'Humana']
-
-    return Array.from({ length: pageSize }, (_, i) => {
-      const id = `PA-${2026}-${String(i + 1).padStart(6, '0')}`
-      const status = statuses[Math.floor(Math.random() * statuses.length)]
-      const score = Math.floor(Math.random() * 100)
-
-      return {
-        id: `mock-${i}`,
-        paId: id,
-        patientId: `PT-${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`,
-        patientName: `Patient ${i + 1}`,
-        payer: payers[Math.floor(Math.random() * payers.length)],
-        status,
-        score,
-        riskFlag: risks[Math.floor(Math.random() * risks.length)],
-        decision: status === 'APPROVED' || status === 'DENIED' ? status : undefined,
-        submittedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-        reviewedAt: Math.random() > 0.5 ? new Date().toISOString() : undefined,
-      }
-    })
-  }
 
   // Fetch audit log
   const fetchAuditLog = async (paId: string) => {
@@ -168,49 +147,7 @@ const PAList: React.FC = () => {
       setAuditLog(response.data.auditLog)
     } catch (error) {
       console.error('Failed to fetch audit log:', error)
-      // Mock audit log
-      setAuditLog([
-        {
-          id: '1',
-          timestamp: new Date(Date.now() - 86400000).toISOString(),
-          actor: 'System',
-          actorType: 'SYSTEM',
-          eventType: 'PA_CREATED',
-          details: 'Prior authorization request submitted',
-        },
-        {
-          id: '2',
-          timestamp: new Date(Date.now() - 82800000).toISOString(),
-          actor: 'Agent A',
-          actorType: 'AGENT',
-          eventType: 'DOCUMENT_ANALYZED',
-          details: 'Clinical data extraction completed',
-        },
-        {
-          id: '3',
-          timestamp: new Date(Date.now() - 79200000).toISOString(),
-          actor: 'Agent B',
-          actorType: 'AGENT',
-          eventType: 'POLICY_CHECKED',
-          details: 'Policy compliance verification passed',
-        },
-        {
-          id: '4',
-          timestamp: new Date(Date.now() - 75600000).toISOString(),
-          actor: 'Agent C',
-          actorType: 'AGENT',
-          eventType: 'FRAUD_ANALYZED',
-          details: 'Low risk assessment completed',
-        },
-        {
-          id: '5',
-          timestamp: new Date(Date.now() - 72000000).toISOString(),
-          actor: 'System',
-          actorType: 'SYSTEM',
-          eventType: 'AUTO_APPROVED',
-          details: 'Request auto-approved based on score',
-        },
-      ])
+      setAuditLog([])
     } finally {
       setAuditLoading(false)
     }

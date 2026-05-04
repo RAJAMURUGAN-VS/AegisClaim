@@ -10,6 +10,11 @@ import type {
   Payer,
   Plan,
   DocumentRequirements,
+  WaitingPeriod,
+  ExcludedProcedure,
+  StepTherapyRule,
+  Hospital,
+  ClaimHistoryRow,
 } from '../types/pa.types'
 
 // Query keys
@@ -38,6 +43,36 @@ export const planKeys = {
 export const documentKeys = {
   all: ['documents'] as const,
   requirements: (treatmentType: string) => [...documentKeys.all, 'requirements', treatmentType] as const,
+}
+
+export const planDetailKeys = {
+  all: ['plan-details'] as const,
+  detail: (planId: string) => [...planDetailKeys.all, planId] as const,
+}
+
+export const waitingPeriodKeys = {
+  all: ['waiting-periods'] as const,
+  list: (planId?: string) => [...waitingPeriodKeys.all, planId || 'all'] as const,
+}
+
+export const excludedProcedureKeys = {
+  all: ['excluded-procedures'] as const,
+  list: (planId?: string) => [...excludedProcedureKeys.all, planId || 'all'] as const,
+}
+
+export const stepTherapyKeys = {
+  all: ['step-therapy'] as const,
+  list: (planId?: string) => [...stepTherapyKeys.all, planId || 'all'] as const,
+}
+
+export const hospitalKeys = {
+  all: ['hospitals'] as const,
+  list: (payerId?: string, search?: string) => [...hospitalKeys.all, payerId || 'all', search || ''] as const,
+}
+
+export const claimHistoryKeys = {
+  all: ['claim-history'] as const,
+  list: (patientId?: string) => [...claimHistoryKeys.all, patientId || 'all'] as const,
 }
 
 // Hook to fetch PA by ID
@@ -223,6 +258,14 @@ export const useDocumentRequirements = (treatmentType: string | undefined) => {
   })
 }
 
+export const usePlanDetails = (planId: string | undefined) => {
+  return useQuery<Plan | null, Error>({
+    queryKey: planDetailKeys.detail(planId || ''),
+    queryFn: () => paService.getPlanDetails(planId!),
+    enabled: !!planId,
+  })
+}
+
 // ============== Dynamic Data Hooks ==============
 
 // Hook to fetch all users from database
@@ -263,6 +306,44 @@ export const useDocumentsRequired = (planId?: string) => {
   return useQuery<any[], Error>({
     queryKey: ['documents', 'database', planId],
     queryFn: () => paService.getDocumentsRequired(planId),
+  })
+}
+
+export const useWaitingPeriods = (planId?: string) => {
+  return useQuery<WaitingPeriod[], Error>({
+    queryKey: waitingPeriodKeys.list(planId),
+    queryFn: () => paService.getWaitingPeriods(planId),
+    enabled: !!planId,
+  })
+}
+
+export const useExcludedProcedures = (planId?: string) => {
+  return useQuery<ExcludedProcedure[], Error>({
+    queryKey: excludedProcedureKeys.list(planId),
+    queryFn: () => paService.getExcludedProcedures(planId),
+    enabled: !!planId,
+  })
+}
+
+export const useStepTherapy = (planId?: string) => {
+  return useQuery<StepTherapyRule[], Error>({
+    queryKey: stepTherapyKeys.list(planId),
+    queryFn: () => paService.getStepTherapy(planId),
+    enabled: !!planId,
+  })
+}
+
+export const useHospitals = (payerId?: string, search?: string) => {
+  return useQuery<Hospital[], Error>({
+    queryKey: hospitalKeys.list(payerId, search),
+    queryFn: () => paService.getHospitals(payerId, search),
+  })
+}
+
+export const useClaimHistory = (patientId?: string) => {
+  return useQuery<ClaimHistoryRow[], Error>({
+    queryKey: claimHistoryKeys.list(patientId),
+    queryFn: () => paService.getClaimHistory(patientId),
   })
 }
 

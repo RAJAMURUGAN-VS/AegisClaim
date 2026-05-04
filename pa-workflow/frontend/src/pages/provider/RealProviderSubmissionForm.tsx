@@ -14,7 +14,19 @@ import {
   Info,
   Calendar,
 } from 'lucide-react'
-import { useSubmitPA, usePayers, usePlansByPayer, useProviderPlans } from '../../hooks/usePA'
+import {
+  useSubmitPA,
+  usePayers,
+  usePlansByPayer,
+  useProviderPlans,
+  usePlanDetails,
+  useDocumentsRequired,
+  useWaitingPeriods,
+  useExcludedProcedures,
+  useStepTherapy,
+  useICDCodes,
+  useCPTCodes,
+} from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
@@ -59,6 +71,8 @@ const RealProviderSubmissionForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [icdInput, setIcdInput] = useState('')
   const [cptInput, setCptInput] = useState('')
+  const [icdSearch, setIcdSearch] = useState('')
+  const [cptSearch, setCptSearch] = useState('')
   const [isDragging, setIsDragging] = useState(false)
 
   const {
@@ -92,6 +106,14 @@ const RealProviderSubmissionForm: React.FC = () => {
   const icd10Codes = watch('icd10Codes') || []
   const cptCodes = watch('cptCodes') || []
   const documents = watch('documents') || []
+  const selectedPlanId = watch('planId')
+  const { data: selectedPlanDetails } = usePlanDetails(selectedPlanId)
+  const { data: documentRequirements = [] } = useDocumentsRequired(selectedPlanId)
+  const { data: waitingPeriods = [] } = useWaitingPeriods(selectedPlanId)
+  const { data: excludedProcedures = [] } = useExcludedProcedures(selectedPlanId)
+  const { data: stepTherapy = [] } = useStepTherapy(selectedPlanId)
+  const { data: icdSuggestions = [] } = useICDCodes(icdSearch.trim())
+  const { data: cptSuggestions = [] } = useCPTCodes(cptSearch.trim())
 
   const submitPAMutation = useSubmitPA()
 
@@ -386,16 +408,12 @@ const RealProviderSubmissionForm: React.FC = () => {
           name="planId"
           control={control}
           render={({ field }) => {
-            // Use provider plans if available, otherwise use payer-based plans
-            const planOptions = providerPlans.length > 0
-              ? providerPlans
-              : plans
+            const planOptions = providerPlans.length > 0 ? providerPlans : plans
 
-            // Auto-populate payer when plan is selected from provider plans
             const handlePlanChange = (value: string) => {
               field.onChange(value)
               if (providerPlans.length > 0) {
-                const selectedPlan = providerPlans.find(p => p.id === value)
+                const selectedPlan = providerPlans.find((p) => p.id === value)
                 if (selectedPlan && selectedPlan.payerId) {
                   setValue('payerId', selectedPlan.payerId)
                 }
@@ -422,6 +440,87 @@ const RealProviderSubmissionForm: React.FC = () => {
             )
           }}
         />
+
+      {selectedPlanDetails && (
+            <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-primary-900">Plan details</h4>
+                <p className="text-xs text-primary-700">Live metadata from the database</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 text-sm">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Coverage limit</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails.coverageLimit ? `$${selectedPlanDetails.coverageLimit.toLocaleString()}` : 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Waiting period</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails.waitingPeriodDays ?? 'N/A'} days
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Claims/year</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails.maxClaimsPerYear ?? 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {documentRequirements.length > 0 && (
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-neutral-900">Required documents</h4>
+                <p className="text-xs text-neutral-500">Fetched from the database for the selected plan</p>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 text-sm">
+                {documentRequirements.slice(0, 8).map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 text-neutral-700">
+                    <CheckCircle2 className="w-4 h-4 text-success-600" />
+                    {item.documentName}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(waitingPeriods.length > 0 || excludedProcedures.length > 0 || stepTherapy.length > 0) && (
+            <div className="grid gap-4 lg:grid-cols-3">
+              {waitingPeriods.length > 0 && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Waiting periods</h4>
+                  <ul className="space-y-1 text-sm text-neutral-700">
+                    {waitingPeriods.slice(0, 3).map((rule) => (
+                      <li key={rule.id}>{rule.diseaseName}: {rule.waitingDays} days</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {excludedProcedures.length > 0 && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Excluded procedures</h4>
+                  <ul className="space-y-1 text-sm text-neutral-700">
+                    {excludedProcedures.slice(0, 3).map((rule) => (
+                      <li key={rule.id}>{rule.procedureName}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {stepTherapy.length > 0 && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Step therapy</h4>
+                  <ul className="space-y-1 text-sm text-neutral-700">
+                    {stepTherapy.slice(0, 3).map((rule) => (
+                      <li key={rule.id}>{rule.procedureName}: {rule.requiredPrior}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
       </div>
 
       <Controller
@@ -484,6 +583,32 @@ const RealProviderSubmissionForm: React.FC = () => {
         <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
           ICD-10 Codes <span className="text-danger-500">*</span>
         </label>
+        <input
+          type="text"
+          value={icdSearch}
+          onChange={(e) => setIcdSearch(e.target.value)}
+          placeholder="Search ICD-10 suggestions"
+          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
+        />
+        {icdSuggestions.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {icdSuggestions.slice(0, 8).map((item) => (
+              <button
+                key={item.icdCode}
+                type="button"
+                onClick={() => {
+                  if (!icd10Codes.includes(item.icdCode)) {
+                    setValue('icd10Codes', [...icd10Codes, item.icdCode], { shouldValidate: true })
+                  }
+                  setIcdSearch('')
+                }}
+                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
+              >
+                {item.icdCode}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 mb-2">
           {icd10Codes.map((code) => (
             <span
@@ -527,6 +652,32 @@ const RealProviderSubmissionForm: React.FC = () => {
         <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
           CPT Codes <span className="text-danger-500">*</span>
         </label>
+        <input
+          type="text"
+          value={cptSearch}
+          onChange={(e) => setCptSearch(e.target.value)}
+          placeholder="Search CPT suggestions"
+          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
+        />
+        {cptSuggestions.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {cptSuggestions.slice(0, 8).map((item) => (
+              <button
+                key={item.cptCode}
+                type="button"
+                onClick={() => {
+                  if (!cptCodes.includes(item.cptCode)) {
+                    setValue('cptCodes', [...cptCodes, item.cptCode], { shouldValidate: true })
+                  }
+                  setCptSearch('')
+                }}
+                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
+              >
+                {item.cptCode}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 mb-2">
           {cptCodes.map((code) => (
             <span
