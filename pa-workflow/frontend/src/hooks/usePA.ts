@@ -306,6 +306,7 @@ export const useDocumentsRequired = (planId?: string) => {
   return useQuery<any[], Error>({
     queryKey: ['documents', 'database', planId],
     queryFn: () => paService.getDocumentsRequired(planId),
+    enabled: !!planId,
   })
 }
 

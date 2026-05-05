@@ -32,6 +32,7 @@ import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Input } from '../../components/common/Input'
 import { Select } from '../../components/common/Select'
+import { Spinner } from '../../components/common/Spinner'
 
 // Validation schemas for each step
 const step1Schema = z.object({
@@ -121,13 +122,45 @@ const PASubmissionForm: React.FC = () => {
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
   const { data: plans, isLoading: isLoadingPlans } = usePlansByPayer(selectedPayerId)
   const { data: providerPlans = [], isLoading: isLoadingProviderPlans } = useProviderPlans()
-  const { data: selectedPlanDetails } = usePlanDetails(selectedPlanId)
-  const { data: documentRequirements = [] } = useDocumentsRequired(selectedPlanId)
-  const { data: waitingPeriods = [] } = useWaitingPeriods(selectedPlanId)
-  const { data: excludedProcedures = [] } = useExcludedProcedures(selectedPlanId)
-  const { data: stepTherapy = [] } = useStepTherapy(selectedPlanId)
+  const {
+    data: selectedPlanDetails,
+    isLoading: isLoadingPlanDetails,
+    isFetching: isFetchingPlanDetails,
+  } = usePlanDetails(selectedPlanId)
+  const {
+    data: documentRequirements = [],
+    isLoading: isLoadingDocumentRequirements,
+    isFetching: isFetchingDocumentRequirements,
+  } = useDocumentsRequired(selectedPlanId)
+  const {
+    data: waitingPeriods = [],
+    isLoading: isLoadingWaitingPeriods,
+    isFetching: isFetchingWaitingPeriods,
+  } = useWaitingPeriods(selectedPlanId)
+  const {
+    data: excludedProcedures = [],
+    isLoading: isLoadingExcludedProcedures,
+    isFetching: isFetchingExcludedProcedures,
+  } = useExcludedProcedures(selectedPlanId)
+  const {
+    data: stepTherapy = [],
+    isLoading: isLoadingStepTherapy,
+    isFetching: isFetchingStepTherapy,
+  } = useStepTherapy(selectedPlanId)
   const { data: icdSuggestions = [] } = useICDCodes(icdSearch.trim())
   const { data: cptSuggestions = [] } = useCPTCodes(cptSearch.trim())
+  const isPlanMetadataLoading =
+    !!selectedPlanId &&
+    (isLoadingPlanDetails ||
+      isFetchingPlanDetails ||
+      isLoadingDocumentRequirements ||
+      isFetchingDocumentRequirements ||
+      isLoadingWaitingPeriods ||
+      isFetchingWaitingPeriods ||
+      isLoadingExcludedProcedures ||
+      isFetchingExcludedProcedures ||
+      isLoadingStepTherapy ||
+      isFetchingStepTherapy)
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -497,86 +530,110 @@ const PASubmissionForm: React.FC = () => {
           }}
         />
 
-      {selectedPlanDetails && (
-            <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 space-y-3">
-              <div>
-                <h4 className="text-sm font-semibold text-primary-900">Plan details</h4>
-                <p className="text-xs text-primary-700">Live metadata from the database</p>
+      <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 space-y-4 min-h-[20rem]">
+        <div>
+          <h4 className="text-sm font-semibold text-primary-900">Plan details</h4>
+          <p className="text-xs text-primary-700">Live metadata from the database</p>
+        </div>
+
+        {!selectedPlanId ? (
+          <div className="flex min-h-[14rem] items-center justify-center rounded-xl border border-dashed border-primary-200 bg-white/70 px-4 text-sm text-primary-700">
+            Select an insurance plan to view coverage, documents, and policy rules.
+          </div>
+        ) : isPlanMetadataLoading ? (
+          <div className="flex min-h-[14rem] items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-primary-700">
+              <Spinner size="lg" />
+              <p className="text-sm font-medium">Loading plan details...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3 text-sm">
+              <div className="rounded-lg border border-primary-100 bg-white p-3">
+                <div className="text-xs uppercase tracking-wide text-primary-700">Coverage limit</div>
+                <div className="font-medium text-primary-950">
+                  {selectedPlanDetails?.coverageLimit ? `$${selectedPlanDetails.coverageLimit.toLocaleString()}` : 'N/A'}
+                </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3 text-sm">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-primary-700">Coverage limit</div>
-                  <div className="font-medium text-primary-950">
-                    {selectedPlanDetails.coverageLimit ? `$${selectedPlanDetails.coverageLimit.toLocaleString()}` : 'N/A'}
-                  </div>
+              <div className="rounded-lg border border-primary-100 bg-white p-3">
+                <div className="text-xs uppercase tracking-wide text-primary-700">Waiting period</div>
+                <div className="font-medium text-primary-950">
+                  {selectedPlanDetails?.waitingPeriodDays ?? 'N/A'} days
                 </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-primary-700">Waiting period</div>
-                  <div className="font-medium text-primary-950">
-                    {selectedPlanDetails.waitingPeriodDays ?? 'N/A'} days
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-primary-700">Claims/year</div>
-                  <div className="font-medium text-primary-950">
-                    {selectedPlanDetails.maxClaimsPerYear ?? 'N/A'}
-                  </div>
+              </div>
+              <div className="rounded-lg border border-primary-100 bg-white p-3">
+                <div className="text-xs uppercase tracking-wide text-primary-700">Claims/year</div>
+                <div className="font-medium text-primary-950">
+                  {selectedPlanDetails?.maxClaimsPerYear ?? 'N/A'}
                 </div>
               </div>
             </div>
-          )}
 
-          {documentRequirements.length > 0 && (
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
-              <div>
-                <h4 className="text-sm font-semibold text-neutral-900">Required documents</h4>
-                <p className="text-xs text-neutral-500">Fetched from the database for the selected plan</p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-neutral-900">Required documents</h4>
+                  <p className="text-xs text-neutral-500">Fetched from the database for the selected plan</p>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2 text-sm">
+                  {documentRequirements.length > 0 ? (
+                    documentRequirements.slice(0, 8).map((item) => (
+                      <div key={item.id} className="flex items-center gap-2 text-neutral-700">
+                        <CheckCircle2 className="w-4 h-4 text-success-600" />
+                        {item.documentName}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-neutral-500 md:col-span-2">No document requirements found for this plan.</div>
+                  )}
+                </div>
               </div>
-              <div className="grid gap-2 md:grid-cols-2 text-sm">
-                {documentRequirements.slice(0, 8).map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 text-neutral-700">
-                    <CheckCircle2 className="w-4 h-4 text-success-600" />
-                    {item.documentName}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {(waitingPeriods.length > 0 || excludedProcedures.length > 0 || stepTherapy.length > 0) && (
-            <div className="grid gap-4 lg:grid-cols-3">
-              {waitingPeriods.length > 0 && (
-                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+                <div>
                   <h4 className="text-sm font-semibold text-neutral-900 mb-2">Waiting periods</h4>
                   <ul className="space-y-1 text-sm text-neutral-700">
-                    {waitingPeriods.slice(0, 3).map((rule) => (
-                      <li key={rule.id}>{rule.diseaseName}: {rule.waitingDays} days</li>
-                    ))}
+                    {waitingPeriods.length > 0 ? (
+                      waitingPeriods.slice(0, 3).map((rule) => (
+                        <li key={rule.id}>{rule.diseaseName}: {rule.waitingDays} days</li>
+                      ))
+                    ) : (
+                      <li className="text-neutral-500">No waiting period rules found for this plan.</li>
+                    )}
                   </ul>
                 </div>
-              )}
-              {excludedProcedures.length > 0 && (
-                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+
+                <div>
                   <h4 className="text-sm font-semibold text-neutral-900 mb-2">Excluded procedures</h4>
                   <ul className="space-y-1 text-sm text-neutral-700">
-                    {excludedProcedures.slice(0, 3).map((rule) => (
-                      <li key={rule.id}>{rule.procedureName}</li>
-                    ))}
+                    {excludedProcedures.length > 0 ? (
+                      excludedProcedures.slice(0, 3).map((rule) => (
+                        <li key={rule.id}>{rule.procedureName}</li>
+                      ))
+                    ) : (
+                      <li className="text-neutral-500">No excluded procedures found for this plan.</li>
+                    )}
                   </ul>
                 </div>
-              )}
-              {stepTherapy.length > 0 && (
-                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+
+                <div>
                   <h4 className="text-sm font-semibold text-neutral-900 mb-2">Step therapy</h4>
                   <ul className="space-y-1 text-sm text-neutral-700">
-                    {stepTherapy.slice(0, 3).map((rule) => (
-                      <li key={rule.id}>{rule.procedureName}: {rule.requiredPrior}</li>
-                    ))}
+                    {stepTherapy.length > 0 ? (
+                      stepTherapy.slice(0, 3).map((rule) => (
+                        <li key={rule.id}>{rule.procedureName}: {rule.requiredPrior}</li>
+                      ))
+                    ) : (
+                      <li className="text-neutral-500">No step therapy rules found for this plan.</li>
+                    )}
                   </ul>
                 </div>
-              )}
+              </div>
             </div>
-          )}
+          </div>
+        )}
+      </div>
       </div>
 
       <Controller
