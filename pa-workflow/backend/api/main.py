@@ -1,4 +1,13 @@
 # FastAPI Main Application Entrypoint
+import os
+from pathlib import Path
+
+# Load the parent repo .env file when running from backend/
+env_path = Path(__file__).resolve().parents[2] / ".env"
+if env_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=env_path)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
