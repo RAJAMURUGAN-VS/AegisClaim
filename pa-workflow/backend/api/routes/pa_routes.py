@@ -10,7 +10,7 @@ import logging
 from ..schemas import pa_schemas
 from ..middleware.auth import require_role, User, get_current_user
 from core.redis_client import get_redis_pool
-from services.sonar_service import chat_with_medical_context, analyze_extracted_text
+from services.sonar_service import chat_with_medical_context, analyze_extracted_text, extract_medical_codes_from_text
 from services.report_service import generate_summary_report, save_report_to_file
 
 logger = logging.getLogger(__name__)
@@ -571,5 +571,81 @@ async def get_document_requirements(treatment_type: str, current_user: User = De
         },
     }
     return requirements_db.get(treatment_type.lower(), {"required": [], "optional": []})
+
+
+@router.post("/provider/extract-codes")
+async def extract_medical_codes(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Extract ICD-10 (diagnosis) and CPT (procedure) codes from uploaded medical documents.
+    
+    Args:
+        files: List of medical document files (PDF, JPEG, PNG, TIFF)
+    
+    Returns:
+        {
+            "icd10Codes": ["E11.9", "I10", ...],
+            "cptCodes": ["99213", "27447", ...]
+        }
+    """
+    import tempfile
+    from pathlib import Path
+    from services.ocr_service import extract_text_from_image, extract_text_from_pdf
+    
+    try:
+        all_extracted_text = []
+        
+        # Extract text from all uploaded files
+        for file in files:
+            if file.filename is None:
+                continue
+                
+            # Save file temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp_file:
+                content = await file.read()
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            try:
+                # Extract text based on file type
+                file_ext = Path(file.filename).suffix.lower()
+                
+                if file_ext == ".pdf":
+                    text, confidence, page_count = extract_text_from_pdf(temp_file_path)
+                elif file_ext in [".jpg", ".jpeg", ".png", ".tiff", ".tif"]:
+                    text, confidence = extract_text_from_image(temp_file_path)
+                else:
+                    logger.warning(f"Unsupported file type: {file_ext}")
+                    continue
+                
+                if text:
+                    all_extracted_text.append(text)
+                    logger.info(f"Extracted {len(text)} characters from {file.filename} (confidence: {confidence:.2f})")
+            
+            finally:
+                # Clean up temporary file
+                Path(temp_file_path).unlink(missing_ok=True)
+        
+        # Combine all extracted text and let Sonar produce exact codes when possible.
+        combined_text = "\n\n".join(all_extracted_text)
+        extraction_result = extract_medical_codes_from_text(combined_text)
+
+        logger.info(
+            "Extracted %s ICD-10 codes and %s CPT codes",
+            len(extraction_result.get("icd10Codes", [])),
+            len(extraction_result.get("cptCodes", [])),
+        )
+
+        return extraction_result
+    
+    except Exception as e:
+        logger.error(f"Error extracting medical codes: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract codes from documents: {str(e)}"
+        )
+
 
 

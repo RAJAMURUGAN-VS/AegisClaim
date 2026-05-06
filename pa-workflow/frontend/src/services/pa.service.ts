@@ -468,4 +468,25 @@ export const paService = {
     const response = await api.get<Plan[]>('/data/provider-plans')
     return response.data
   },
+
+  // Extract medical codes (ICD-10 and CPT) from uploaded documents
+  extractCodesFromDocuments: async (
+    files: File[]
+  ): Promise<{ icd10Codes: string[]; cptCodes: string[]; exactMatchFound: boolean; message: string }> => {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    const response = await api.post<{ icd10Codes: string[]; cptCodes: string[]; exactMatchFound: boolean; message: string }>(
+      '/provider/extract-codes',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    )
+    return response.data
+  },
 }

@@ -24,10 +24,10 @@ import {
   useWaitingPeriods,
   useExcludedProcedures,
   useStepTherapy,
-  useICDCodes,
-  useCPTCodes,
+  useExtractCodes,
 } from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
+import type { Plan, WaitingPeriod, ExcludedProcedure, StepTherapyRule } from '../../types/pa.types'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Input } from '../../components/common/Input'
@@ -46,18 +46,18 @@ const step1Schema = z.object({
     today.setHours(23, 59, 59, 999)
     return selected <= today
   }, 'Date of service cannot be in the future'),
+  documents: z.array(z.instanceof(File)).min(1, 'At least one document is required'),
 })
 
 const step2Schema = z.object({
   icd10Codes: z.array(z.string()).min(1, 'At least one ICD-10 code is required'),
   cptCodes: z.array(z.string()).min(1, 'At least one CPT code is required'),
-  priorTreatmentHistory: z.string().optional(),
-  medicationName: z.string().optional(),
-  medicationDosage: z.string().optional(),
 })
 
 const step3Schema = z.object({
-  documents: z.array(z.instanceof(File)).min(1, 'At least one document is required'),
+  priorTreatmentHistory: z.string().optional(),
+  medicationName: z.string().optional(),
+  medicationDosage: z.string().optional(),
 })
 
 const formSchema = step1Schema.merge(step2Schema).merge(step3Schema)
@@ -81,12 +81,12 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const PASubmissionForm: React.FC = () => {
   const navigate = useNavigate()
   const { showNotification } = useNotifications()
-  const [currentStep, setCurrentStep] = useState(DIRECT_DOC_UPLOAD_TEST_MODE ? 3 : 1)
+  const [currentStep, setCurrentStep] = useState(1)
   const [icdInput, setIcdInput] = useState('')
   const [cptInput, setCptInput] = useState('')
-  const [icdSearch, setIcdSearch] = useState('')
-  const [cptSearch, setCptSearch] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [extractedCodes, setExtractedCodes] = useState<{ icd10: string[]; cpt: string[] }>({ icd10: [], cpt: [] })
+  const [extractionMessage, setExtractionMessage] = useState('')
 
   const {
     control,
@@ -118,37 +118,42 @@ const PASubmissionForm: React.FC = () => {
   const documents = watch('documents') || []
   const selectedPlanId = watch('planId')
 
+  const extractCodesMutation = useExtractCodes()
   const submitPAMutation = useSubmitPA()
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
   const { data: plans, isLoading: isLoadingPlans } = usePlansByPayer(selectedPayerId)
-  const { data: providerPlans = [], isLoading: isLoadingProviderPlans } = useProviderPlans()
+  const { data: providerPlans = [], isLoading: isLoadingProviderPlans, isFetched: hasFetchedProviderPlans } = useProviderPlans()
+  const showProviderPlans = !hasFetchedProviderPlans || providerPlans.length > 0
   const {
-    data: selectedPlanDetails,
+    data: selectedPlanDetailsData,
     isLoading: isLoadingPlanDetails,
     isFetching: isFetchingPlanDetails,
   } = usePlanDetails(selectedPlanId)
+  const selectedPlanDetails = selectedPlanDetailsData as Plan | undefined
   const {
-    data: documentRequirements = [],
+    data: documentRequirementsData,
     isLoading: isLoadingDocumentRequirements,
     isFetching: isFetchingDocumentRequirements,
   } = useDocumentsRequired(selectedPlanId)
+  const documentRequirements = (documentRequirementsData ?? []) as Array<{ id: number | string; documentName: string }>
   const {
-    data: waitingPeriods = [],
+    data: waitingPeriodsData,
     isLoading: isLoadingWaitingPeriods,
     isFetching: isFetchingWaitingPeriods,
   } = useWaitingPeriods(selectedPlanId)
+  const waitingPeriods = (waitingPeriodsData ?? []) as WaitingPeriod[]
   const {
-    data: excludedProcedures = [],
+    data: excludedProceduresData,
     isLoading: isLoadingExcludedProcedures,
     isFetching: isFetchingExcludedProcedures,
   } = useExcludedProcedures(selectedPlanId)
+  const excludedProcedures = (excludedProceduresData ?? []) as ExcludedProcedure[]
   const {
-    data: stepTherapy = [],
+    data: stepTherapyData,
     isLoading: isLoadingStepTherapy,
     isFetching: isFetchingStepTherapy,
   } = useStepTherapy(selectedPlanId)
-  const { data: icdSuggestions = [] } = useICDCodes(icdSearch.trim())
-  const { data: cptSuggestions = [] } = useCPTCodes(cptSearch.trim())
+  const stepTherapy = (stepTherapyData ?? []) as StepTherapyRule[]
   const isPlanMetadataLoading =
     !!selectedPlanId &&
     (isLoadingPlanDetails ||
@@ -164,13 +169,53 @@ const PASubmissionForm: React.FC = () => {
 
   const handleNext = () => {
     if (currentStep < 3) {
-      setCurrentStep((prev) => prev + 1)
+      if (currentStep === 1 && documents.length > 0) {
+        setCurrentStep(2)
+        void handleExtractCodes()
+      } else {
+        setCurrentStep((prev) => prev + 1)
+      }
     }
   }
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1)
+    }
+  }
+
+  const handleExtractCodes = async () => {
+    if (documents.length === 0) {
+      showNotification({
+        type: 'error',
+        title: 'No Documents',
+        message: 'Please upload at least one document before extracting codes.',
+      })
+      return
+    }
+
+    try {
+      const result = await extractCodesMutation.mutateAsync({ files: documents })
+      setExtractedCodes({ icd10: result.icd10Codes, cpt: result.cptCodes })
+      setExtractionMessage(result.message || '')
+      setValue('icd10Codes', result.icd10Codes, { shouldValidate: true })
+      setValue('cptCodes', result.cptCodes, { shouldValidate: true })
+      const notificationMessage =
+        result.exactMatchFound && (result.icd10Codes.length > 0 || result.cptCodes.length > 0)
+          ? result.message || `Found ${result.icd10Codes.length} diagnosis codes and ${result.cptCodes.length} procedure codes.`
+          : result.message || "From the details and document provided, we couldn't find the exact code. Please review and add it manually."
+
+      showNotification({
+        type: result.exactMatchFound && (result.icd10Codes.length > 0 || result.cptCodes.length > 0) ? 'success' : 'warning',
+        title: result.exactMatchFound && (result.icd10Codes.length > 0 || result.cptCodes.length > 0) ? 'Codes Extracted' : 'Exact Code Not Found',
+        message: notificationMessage,
+      })
+    } catch (error) {
+      showNotification({
+        type: 'error',
+        title: 'Extraction Failed',
+        message: error instanceof Error ? error.message : 'Could not extract codes from documents. Please add them manually.',
+      })
     }
   }
 
@@ -352,9 +397,9 @@ const PASubmissionForm: React.FC = () => {
 
   const renderStepIndicator = () => {
     const steps = [
-      { id: 1, label: 'Patient & Insurance', description: 'Basic information' },
-      { id: 2, label: 'Clinical Info', description: 'Diagnosis & codes' },
-      { id: 3, label: 'Documents', description: 'Upload records' },
+      { id: 1, label: 'Patient & Documents', description: 'Info and supporting files' },
+      { id: 2, label: 'Review Codes', description: 'Diagnosis & procedure codes' },
+      { id: 3, label: 'Clinical Details', description: 'History and medications' },
     ]
 
     return (
@@ -470,8 +515,8 @@ const PASubmissionForm: React.FC = () => {
         )}
       />
 
-      <div className={`grid gap-6 ${providerPlans.length === 0 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-        {providerPlans.length === 0 && (
+      <div className={`grid gap-6 ${showProviderPlans ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+        {!showProviderPlans && (
           <Controller
             name="payerId"
             control={control}
@@ -497,11 +542,11 @@ const PASubmissionForm: React.FC = () => {
           name="planId"
           control={control}
           render={({ field }) => {
-            const planOptions = providerPlans.length > 0 ? providerPlans : plans
+            const planOptions = showProviderPlans ? providerPlans : plans
 
             const handlePlanChange = (value: string) => {
               field.onChange(value)
-              if (providerPlans.length > 0) {
+              if (showProviderPlans) {
                 const selectedPlan = providerPlans.find((p) => p.id === value)
                 if (selectedPlan && selectedPlan.payerId) {
                   setValue('payerId', selectedPlan.payerId)
@@ -511,129 +556,124 @@ const PASubmissionForm: React.FC = () => {
 
             return (
               <Select
-                label={providerPlans.length > 0 ? 'Your Insurance Plans' : 'Insurance Plan'}
+                label={showProviderPlans ? 'Your Insurance Plans' : 'Insurance Plan'}
                 value={field.value}
                 onChange={handlePlanChange}
                 options={planOptions?.map((p) => ({ value: p.id, label: p.name })) || []}
-                placeholder={
-                  isLoadingProviderPlans ? 'Loading your plans...'
-                    : providerPlans.length === 0 && !selectedPayerId ? 'Select payer first'
-                      : isLoadingPlans ? 'Loading plans...'
-                        : 'Select a plan'
-                }
+                placeholder="Select a plan"
                 error={errors.planId?.message}
-                loading={providerPlans.length > 0 ? isLoadingProviderPlans : isLoadingPlans}
-                disabled={providerPlans.length === 0 && !selectedPayerId}
+                loading={showProviderPlans ? isLoadingProviderPlans && hasFetchedProviderPlans : isLoadingPlans}
+                disabled={showProviderPlans ? !hasFetchedProviderPlans : !selectedPayerId}
                 required
               />
             )
           }}
         />
 
-      <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 space-y-4 min-h-[20rem]">
-        <div>
-          <h4 className="text-sm font-semibold text-primary-900">Plan details</h4>
-          <p className="text-xs text-primary-700">Live metadata from the database</p>
+        <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-4 space-y-4 min-h-[20rem]">
+          <div>
+            <h4 className="text-sm font-semibold text-primary-900">Plan details</h4>
+            <p className="text-xs text-primary-700">Live metadata from the database</p>
+          </div>
+
+          {!selectedPlanId ? (
+            <div className="flex min-h-[14rem] items-center justify-center rounded-xl border border-dashed border-primary-200 bg-white/70 px-4 text-sm text-primary-700">
+              Select an insurance plan to view coverage, documents, and policy rules.
+            </div>
+          ) : isPlanMetadataLoading ? (
+            <div className="flex min-h-[14rem] items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-primary-700">
+                <Spinner size="lg" />
+                <p className="text-sm font-medium">Loading plan details...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3 text-sm">
+                <div className="rounded-lg border border-primary-100 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Coverage limit</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails?.coverageLimit ? `$${selectedPlanDetails.coverageLimit.toLocaleString()}` : 'N/A'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-primary-100 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Waiting period</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails?.waitingPeriodDays ?? 'N/A'} days
+                  </div>
+                </div>
+                <div className="rounded-lg border border-primary-100 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-primary-700">Claims/year</div>
+                  <div className="font-medium text-primary-950">
+                    {selectedPlanDetails?.maxClaimsPerYear ?? 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-900">Required documents</h4>
+                    <p className="text-xs text-neutral-500">Fetched from the database for the selected plan</p>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2 text-sm">
+                    {documentRequirements.length > 0 ? (
+                      documentRequirements.slice(0, 8).map((item) => (
+                        <div key={item.id} className="flex items-center gap-2 text-neutral-700">
+                          <CheckCircle2 className="w-4 h-4 text-success-600" />
+                          {item.documentName}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-neutral-500 md:col-span-2">No document requirements found for this plan.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-900 mb-2">Waiting periods</h4>
+                    <ul className="space-y-1 text-sm text-neutral-700">
+                      {waitingPeriods.length > 0 ? (
+                        waitingPeriods.slice(0, 3).map((rule) => (
+                          <li key={rule.id}>{rule.diseaseName}: {rule.waitingDays} days</li>
+                        ))
+                      ) : (
+                        <li className="text-neutral-500">No waiting period rules found for this plan.</li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-900 mb-2">Excluded procedures</h4>
+                    <ul className="space-y-1 text-sm text-neutral-700">
+                      {excludedProcedures.length > 0 ? (
+                        excludedProcedures.slice(0, 3).map((rule) => (
+                          <li key={rule.id}>{rule.procedureName}</li>
+                        ))
+                      ) : (
+                        <li className="text-neutral-500">No excluded procedures found for this plan.</li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-900 mb-2">Step therapy</h4>
+                    <ul className="space-y-1 text-sm text-neutral-700">
+                      {stepTherapy.length > 0 ? (
+                        stepTherapy.slice(0, 3).map((rule) => (
+                          <li key={rule.id}>{rule.procedureName}: {rule.requiredPrior}</li>
+                        ))
+                      ) : (
+                        <li className="text-neutral-500">No step therapy rules found for this plan.</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-
-        {!selectedPlanId ? (
-          <div className="flex min-h-[14rem] items-center justify-center rounded-xl border border-dashed border-primary-200 bg-white/70 px-4 text-sm text-primary-700">
-            Select an insurance plan to view coverage, documents, and policy rules.
-          </div>
-        ) : isPlanMetadataLoading ? (
-          <div className="flex min-h-[14rem] items-center justify-center">
-            <div className="flex flex-col items-center gap-3 text-primary-700">
-              <Spinner size="lg" />
-              <p className="text-sm font-medium">Loading plan details...</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3 text-sm">
-              <div className="rounded-lg border border-primary-100 bg-white p-3">
-                <div className="text-xs uppercase tracking-wide text-primary-700">Coverage limit</div>
-                <div className="font-medium text-primary-950">
-                  {selectedPlanDetails?.coverageLimit ? `$${selectedPlanDetails.coverageLimit.toLocaleString()}` : 'N/A'}
-                </div>
-              </div>
-              <div className="rounded-lg border border-primary-100 bg-white p-3">
-                <div className="text-xs uppercase tracking-wide text-primary-700">Waiting period</div>
-                <div className="font-medium text-primary-950">
-                  {selectedPlanDetails?.waitingPeriodDays ?? 'N/A'} days
-                </div>
-              </div>
-              <div className="rounded-lg border border-primary-100 bg-white p-3">
-                <div className="text-xs uppercase tracking-wide text-primary-700">Claims/year</div>
-                <div className="font-medium text-primary-950">
-                  {selectedPlanDetails?.maxClaimsPerYear ?? 'N/A'}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-900">Required documents</h4>
-                  <p className="text-xs text-neutral-500">Fetched from the database for the selected plan</p>
-                </div>
-                <div className="grid gap-2 md:grid-cols-2 text-sm">
-                  {documentRequirements.length > 0 ? (
-                    documentRequirements.slice(0, 8).map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 text-neutral-700">
-                        <CheckCircle2 className="w-4 h-4 text-success-600" />
-                        {item.documentName}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-neutral-500 md:col-span-2">No document requirements found for this plan.</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Waiting periods</h4>
-                  <ul className="space-y-1 text-sm text-neutral-700">
-                    {waitingPeriods.length > 0 ? (
-                      waitingPeriods.slice(0, 3).map((rule) => (
-                        <li key={rule.id}>{rule.diseaseName}: {rule.waitingDays} days</li>
-                      ))
-                    ) : (
-                      <li className="text-neutral-500">No waiting period rules found for this plan.</li>
-                    )}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Excluded procedures</h4>
-                  <ul className="space-y-1 text-sm text-neutral-700">
-                    {excludedProcedures.length > 0 ? (
-                      excludedProcedures.slice(0, 3).map((rule) => (
-                        <li key={rule.id}>{rule.procedureName}</li>
-                      ))
-                    ) : (
-                      <li className="text-neutral-500">No excluded procedures found for this plan.</li>
-                    )}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-900 mb-2">Step therapy</h4>
-                  <ul className="space-y-1 text-sm text-neutral-700">
-                    {stepTherapy.length > 0 ? (
-                      stepTherapy.slice(0, 3).map((rule) => (
-                        <li key={rule.id}>{rule.procedureName}: {rule.requiredPrior}</li>
-                      ))
-                    ) : (
-                      <li className="text-neutral-500">No step therapy rules found for this plan.</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
       </div>
 
       <Controller
@@ -682,81 +722,196 @@ const PASubmissionForm: React.FC = () => {
           </div>
         )}
       />
+
+      {/* Document Upload Section */}
+      <div>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+          Supporting Documents <span className="text-danger-500">*</span>
+        </label>
+
+        {/* Document Requirements Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-blue-900">Document Requirements</h4>
+              <div className="mt-2 space-y-1 text-sm">
+                <p className="text-blue-800">
+                  <strong>Required:</strong>{' '}
+                  {documentRequirements.length > 0
+                    ? documentRequirements.slice(0, 8).map((item) => item.documentName).join(', ')
+                    : 'Clinical Notes, Patient Demographics'}
+                </p>
+                <p className="text-blue-600">Accepted formats: PDF, JPEG, PNG, TIFF. Max size: 10MB per file.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Drag and Drop Zone */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`
+            border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 mb-4
+            ${isDragging
+              ? 'border-primary-500 bg-primary-50/50'
+              : 'border-neutral-300 hover:border-primary-400 hover:bg-neutral-50'
+            }
+          `}
+        >
+          <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+          <p className="text-neutral-700 font-semibold mb-2">Drag and drop files here</p>
+          <p className="text-neutral-500 text-sm mb-4">or click to browse</p>
+          <label className="cursor-pointer inline-flex">
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <span className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+              Browse Files
+            </span>
+          </label>
+        </div>
+
+        {errors.documents && (
+          <div className="flex items-center text-danger-600 bg-danger-50 rounded-lg p-3 mb-4">
+            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">{errors.documents.message}</span>
+          </div>
+        )}
+
+        {/* Uploaded Files List */}
+        {documents.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="font-medium text-neutral-900">Uploaded Files ({documents.length})</h4>
+            {documents.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                <div className="flex items-center min-w-0">
+                  <FileText className="w-5 h-5 text-neutral-400 mr-3 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 truncate">{file.name}</p>
+                    <p className="text-xs text-neutral-500">{formatFileSize(file.size)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="p-1.5 text-neutral-400 hover:text-danger-500 hover:bg-danger-50 rounded-md transition-colors flex-shrink-0 ml-2"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 
   const renderStep2 = () => (
     <div className="space-y-6 relative z-10 bg-white">
       <div className="border-b border-neutral-200 pb-4 bg-white">
-        <h3 className="text-xl font-semibold text-neutral-900">Step 2: Clinical Information</h3>
-        <p className="text-sm text-neutral-500 mt-1">Enter diagnosis codes and procedure codes</p>
+        <h3 className="text-xl font-semibold text-neutral-900">Step 2: Review Extracted Codes</h3>
+        <p className="text-sm text-neutral-500 mt-1">Medical codes extracted from your documents - review and approve</p>
       </div>
 
-      {/* ICD-10 Codes */}
-      <div>
-        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-          ICD-10 Codes <span className="text-danger-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={icdSearch}
-          onChange={(e) => setIcdSearch(e.target.value)}
-          placeholder="Search ICD-10 suggestions"
-          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
-        />
-        {icdSuggestions.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {icdSuggestions.slice(0, 8).map((item) => (
-              <button
-                key={item.icdCode}
-                type="button"
-                onClick={() => {
-                  if (!icd10Codes.includes(item.icdCode)) {
-                    setValue('icd10Codes', [...icd10Codes, item.icdCode], { shouldValidate: true })
-                  }
-                  setIcdSearch('')
-                }}
-                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
-              >
-                {item.icdCode}
-              </button>
-            ))}
+      {extractionMessage && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <p className="text-sm">{extractionMessage}</p>
           </div>
+        </div>
+      )}
+
+      {/* Extraction Status */}
+      {extractCodesMutation.isPending && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="animate-spin mr-3">
+              <div className="w-4 h-4 border-2 border-primary-500 border-t-primary-300 rounded-full" />
+            </div>
+            <p className="text-sm text-primary-700 font-medium">Extracting medical codes from documents...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Information Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+          <div>
+            <h4 className="font-medium text-blue-900">How Medical Codes Work</h4>
+            <div className="mt-2 space-y-2 text-sm">
+              <p className="text-blue-800">
+                <strong>ICD-10 Codes:</strong> Diagnosis codes that explain WHY the patient needs this procedure. Example: E11.9 (Type 2 Diabetes)
+              </p>
+              <p className="text-blue-800">
+                <strong>CPT Codes:</strong> Procedure codes that describe WHAT procedure you're requesting. Example: 99213 (Office visit)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Extracted ICD-10 Codes */}
+      <div>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+          Diagnosis Codes (ICD-10) <span className="text-danger-500">*</span>
+        </label>
+
+        {extractedCodes.icd10.length > 0 ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {extractedCodes.icd10.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center px-3 py-2 bg-primary-100 text-primary-700 rounded-full text-sm border border-primary-200"
+                >
+                  {code}
+                  <button type="button" onClick={() => removeIcdCode(code)} className="ml-2 hover:text-primary-900 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">Found {extractedCodes.icd10.length} diagnosis codes. Remove any that don't apply.</p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-600 mb-4">No diagnosis codes extracted from documents. You can add them manually below.</p>
         )}
-        <div className="flex flex-wrap gap-2 mb-2">
-          {icd10Codes.map((code) => (
-            <span
-              key={code}
-              className="inline-flex items-center px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm border border-primary-200"
-            >
-              {code}
-              <button type="button" onClick={() => removeIcdCode(code)} className="ml-2 hover:text-primary-900 transition-colors">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
+
+        {/* Manual Add */}
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+          <p className="text-xs font-medium text-neutral-700 mb-3">Add diagnosis codes manually</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={icdInput}
+              onChange={(e) => setIcdInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addIcdCode()
+                }
+              }}
+              placeholder="Type code (e.g., E11.9) and press Enter"
+              className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150"
+            />
+            <Button type="button" variant="secondary" onClick={addIcdCode}>
+              Add
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={icdInput}
-            onChange={(e) => setIcdInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addIcdCode()
-              }
-            }}
-            placeholder="Type code and press Enter"
-            className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
-              placeholder:text-neutral-400
-              focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
-              hover:border-neutral-300 transition-all duration-150"
-          />
-          <Button type="button" variant="secondary" onClick={addIcdCode}>
-            Add
-          </Button>
-        </div>
+
         {errors.icd10Codes && (
           <p className="mt-1.5 text-sm text-danger-600 flex items-center">
             <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
@@ -765,77 +920,74 @@ const PASubmissionForm: React.FC = () => {
         )}
       </div>
 
-      {/* CPT Codes */}
+      {/* Extracted CPT Codes */}
       <div>
-        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-          CPT Codes <span className="text-danger-500">*</span>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+          Procedure Codes (CPT) <span className="text-danger-500">*</span>
         </label>
-        <input
-          type="text"
-          value={cptSearch}
-          onChange={(e) => setCptSearch(e.target.value)}
-          placeholder="Search CPT suggestions"
-          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
-        />
-        {cptSuggestions.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {cptSuggestions.slice(0, 8).map((item) => (
-              <button
-                key={item.cptCode}
-                type="button"
-                onClick={() => {
-                  if (!cptCodes.includes(item.cptCode)) {
-                    setValue('cptCodes', [...cptCodes, item.cptCode], { shouldValidate: true })
-                  }
-                  setCptSearch('')
-                }}
-                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
-              >
-                {item.cptCode}
-              </button>
-            ))}
-          </div>
+
+        {extractedCodes.cpt.length > 0 ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {extractedCodes.cpt.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center px-3 py-2 bg-success-100 text-success-700 rounded-full text-sm border border-success-200"
+                >
+                  {code}
+                  <button type="button" onClick={() => removeCptCode(code)} className="ml-2 hover:text-success-900 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">Found {extractedCodes.cpt.length} procedure codes. Remove any that don't apply.</p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-600 mb-4">No procedure codes extracted from documents. You can add them manually below.</p>
         )}
-        <div className="flex flex-wrap gap-2 mb-2">
-          {cptCodes.map((code) => (
-            <span
-              key={code}
-              className="inline-flex items-center px-3 py-1 bg-success-100 text-success-700 rounded-full text-sm border border-success-200"
-            >
-              {code}
-              <button type="button" onClick={() => removeCptCode(code)} className="ml-2 hover:text-success-900 transition-colors">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
+
+        {/* Manual Add */}
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+          <p className="text-xs font-medium text-neutral-700 mb-3">Add procedure codes manually</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={cptInput}
+              onChange={(e) => setCptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addCptCode()
+                }
+              }}
+              placeholder="Type code (e.g., 99213) and press Enter"
+              className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150"
+            />
+            <Button type="button" variant="secondary" onClick={addCptCode}>
+              Add
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={cptInput}
-            onChange={(e) => setCptInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addCptCode()
-              }
-            }}
-            placeholder="Type code and press Enter"
-            className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
-              placeholder:text-neutral-400
-              focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
-              hover:border-neutral-300 transition-all duration-150"
-          />
-          <Button type="button" variant="secondary" onClick={addCptCode}>
-            Add
-          </Button>
-        </div>
+
         {errors.cptCodes && (
           <p className="mt-1.5 text-sm text-danger-600 flex items-center">
             <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
             {errors.cptCodes.message}
           </p>
         )}
+      </div>
+    </div>
+  )
+
+  const renderStep3 = () => (
+    <div className="space-y-6 relative z-10 bg-white">
+      <div className="border-b border-neutral-200 pb-4 bg-white">
+        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Clinical Details</h3>
+        <p className="text-sm text-neutral-500 mt-1">Provide additional clinical information for insurance review</p>
       </div>
 
       <Controller
@@ -874,96 +1026,6 @@ const PASubmissionForm: React.FC = () => {
           )}
         />
       </div>
-    </div>
-  )
-
-  const renderStep3 = () => (
-    <div className="space-y-6 relative z-10 bg-white">
-      <div className="border-b border-neutral-200 pb-4 bg-white">
-        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Supporting Documents</h3>
-        <p className="text-sm text-neutral-500 mt-1">Upload clinical notes and supporting documents</p>
-      </div>
-
-      {/* Document Requirements Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div>
-            <h4 className="font-medium text-blue-900">Document Requirements</h4>
-            <div className="mt-2 space-y-1 text-sm">
-              <p className="text-blue-800">
-                <strong>Required:</strong>{' '}
-                {documentRequirements.length > 0
-                  ? documentRequirements.slice(0, 8).map((item) => item.documentName).join(', ')
-                  : 'Clinical Notes, Patient Demographics'}
-              </p>
-              <p className="text-blue-600">Accepted formats: PDF, JPEG, PNG, TIFF. Max size: 10MB per file.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Drag and Drop Zone */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`
-          border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200
-          ${isDragging
-            ? 'border-primary-500 bg-primary-50/50'
-            : 'border-neutral-300 hover:border-primary-400 hover:bg-neutral-50'
-          }
-        `}
-      >
-        <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
-        <p className="text-neutral-700 font-semibold mb-2">Drag and drop files here</p>
-        <p className="text-neutral-500 text-sm mb-4">or click to browse</p>
-        <label className="cursor-pointer inline-flex">
-          <input
-            type="file"
-            multiple
-            accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          <span className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
-            Browse Files
-          </span>
-        </label>
-      </div>
-
-      {errors.documents && (
-        <div className="flex items-center text-danger-600 bg-danger-50 rounded-lg p-3">
-          <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-          <span className="text-sm">{errors.documents.message}</span>
-        </div>
-      )}
-
-      {/* Uploaded Files List */}
-      {documents.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="font-medium text-neutral-900">Uploaded Files ({documents.length})</h4>
-          {documents.map((file, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-              <div className="flex items-center min-w-0">
-                <FileText className="w-5 h-5 text-neutral-400 mr-3 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-neutral-900 truncate">{file.name}</p>
-                  <p className="text-xs text-neutral-500">{formatFileSize(file.size)}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeFile(index)}
-                className="p-1.5 text-neutral-400 hover:text-danger-500 hover:bg-danger-50 rounded-md transition-colors flex-shrink-0 ml-2"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 

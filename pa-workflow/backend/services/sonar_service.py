@@ -229,3 +229,102 @@ def chat_with_medical_context(user_message: str, pa_context: Dict[str, Any]) -> 
             "answer": "I could not reach Sonar at the moment. Please retry in a moment.",
             "used_context_keys": used_context_keys,
         }
+
+
+def extract_medical_codes_from_text(text: str) -> Dict[str, Any]:
+    """Extract exact ICD-10 and CPT codes from clinical text using Sonar."""
+    api_key = _get_api_key()
+
+    if not text.strip():
+        return {
+            "icd10Codes": [],
+            "cptCodes": [],
+            "exactMatchFound": False,
+            "message": "No readable text was found in the uploaded documents.",
+        }
+
+    if not api_key:
+        logger.error("SONAR_API_KEY or VITE_SONAR_API not set in environment")
+        return {
+            "icd10Codes": [],
+            "cptCodes": [],
+            "exactMatchFound": False,
+            "message": "The code extraction model is not configured. Please enter codes manually.",
+        }
+
+    system_prompt = (
+        "You are a certified medical coding assistant for prior authorization workflows. "
+        "Return strict JSON only with these keys: icd10Codes, cptCodes, exactMatchFound, message. "
+        "Only include exact codes that are explicitly supported by the document text. "
+        "Do not guess, infer, or map diagnoses to billing codes unless the exact code appears in the text or is unambiguous from the document. "
+        "If you cannot find exact codes, return empty arrays, exactMatchFound false, and a message that says the exact code could not be found from the details and document provided."
+    )
+
+    user_prompt = (
+        "Extract exact ICD-10 and CPT codes from the following clinical text. "
+        "If the text names a condition or procedure but does not provide the exact code, do not invent one. "
+        "Return JSON only.\n\n"
+        f"TEXT:\n{text[:15000]}"
+    )
+
+    payload = {
+        "model": settings.SONAR_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.0,
+        "response_format": {"type": "json_object"},
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        logger.info("Calling Sonar for medical code extraction...")
+        data = _call_sonar(payload=payload, headers=headers, timeout=30.0)
+        content = data["choices"][0]["message"]["content"]
+        parsed = _parse_sonar_json(content)
+
+        icd10_codes = parsed.get("icd10Codes", [])
+        cpt_codes = parsed.get("cptCodes", [])
+        exact_match_found = parsed.get("exactMatchFound", bool(icd10_codes or cpt_codes))
+        message = parsed.get("message", "")
+
+        if not isinstance(icd10_codes, list):
+            icd10_codes = [str(icd10_codes)] if icd10_codes else []
+        if not isinstance(cpt_codes, list):
+            cpt_codes = [str(cpt_codes)] if cpt_codes else []
+
+        icd10_codes = sorted({str(code).strip().upper() for code in icd10_codes if str(code).strip()})
+        cpt_codes = sorted({str(code).strip().upper() for code in cpt_codes if str(code).strip()})
+
+        if not icd10_codes and not cpt_codes:
+            exact_match_found = False
+            if not message:
+                message = "From the details and document provided, we could not find the exact code. Please review and add it manually."
+
+        return {
+            "icd10Codes": icd10_codes,
+            "cptCodes": cpt_codes,
+            "exactMatchFound": bool(exact_match_found),
+            "message": message,
+        }
+    except Exception as exc:
+        logger.warning("Sonar medical code extraction failed, using fallback regex: %s", exc)
+        icd10_codes = sorted(set(re.findall(r"\b([A-Z]\d{2}(?:\.\d{0,4})?)\b", text.upper())))
+        cpt_codes = sorted(set(re.findall(r"\b(\d{5})\b", text)))
+        message = (
+            "From the details and document provided, we could not find the exact code. "
+            "Please review the extracted text and add codes manually."
+            if not icd10_codes and not cpt_codes
+            else "The model was unavailable, so these codes were collected from pattern matching. Please review them carefully."
+        )
+        return {
+            "icd10Codes": icd10_codes,
+            "cptCodes": cpt_codes,
+            "exactMatchFound": bool(icd10_codes or cpt_codes),
+            "message": message,
+        }

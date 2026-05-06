@@ -263,6 +263,9 @@ export const usePlanDetails = (planId: string | undefined) => {
     queryKey: planDetailKeys.detail(planId || ''),
     queryFn: () => paService.getPlanDetails(planId!),
     enabled: !!planId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   })
 }
 
@@ -307,6 +310,9 @@ export const useDocumentsRequired = (planId?: string) => {
     queryKey: ['documents', 'database', planId],
     queryFn: () => paService.getDocumentsRequired(planId),
     enabled: !!planId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   })
 }
 
@@ -315,6 +321,9 @@ export const useWaitingPeriods = (planId?: string) => {
     queryKey: waitingPeriodKeys.list(planId),
     queryFn: () => paService.getWaitingPeriods(planId),
     enabled: !!planId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   })
 }
 
@@ -323,6 +332,9 @@ export const useExcludedProcedures = (planId?: string) => {
     queryKey: excludedProcedureKeys.list(planId),
     queryFn: () => paService.getExcludedProcedures(planId),
     enabled: !!planId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   })
 }
 
@@ -331,6 +343,9 @@ export const useStepTherapy = (planId?: string) => {
     queryKey: stepTherapyKeys.list(planId),
     queryFn: () => paService.getStepTherapy(planId),
     enabled: !!planId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   })
 }
 
@@ -371,5 +386,25 @@ export const useProviderPlans = () => {
   return useQuery<Plan[], Error>({
     queryKey: ['plans', 'provider'],
     queryFn: () => paService.getProviderPlans(),
+  })
+}
+
+// Hook to extract medical codes from uploaded documents
+export const useExtractCodes = () => {
+  return useMutation<
+    { icd10Codes: string[]; cptCodes: string[]; exactMatchFound: boolean; message: string },
+    Error,
+    { files: File[] }
+  >({
+    mutationFn: ({ files }) => {
+      console.log('🔄 [Hook] useExtractCodes: Extracting codes from documents...')
+      return paService.extractCodesFromDocuments(files)
+    },
+    onSuccess: (result) => {
+      console.log('✅ [Hook] useExtractCodes: Codes extracted successfully', result)
+    },
+    onError: (error) => {
+      console.error('❌ [Hook] useExtractCodes: Code extraction failed -', error)
+    },
   })
 }
