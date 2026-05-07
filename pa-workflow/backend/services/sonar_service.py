@@ -328,3 +328,87 @@ def extract_medical_codes_from_text(text: str) -> Dict[str, Any]:
             "exactMatchFound": bool(icd10_codes or cpt_codes),
             "message": message,
         }
+
+
+def generate_followup_questions(pa_context: Dict[str, Any], max_questions: int = 6) -> Dict[str, Any]:
+    """Generate targeted follow-up questions for a provider to clarify a PA submission.
+
+    Returns a JSON object with key 'questions' containing a list of question dicts.
+    Falls back to a small rule-based question set if Sonar is unavailable.
+    """
+    api_key = _get_api_key()
+
+    # Minimal local fallback
+    def _local_fallback():
+        questions = [
+            {
+                "id": "q_failed_conservative",
+                "field": "failedConservativeTherapy",
+                "type": "select",
+                "label": "Has the patient failed conservative therapy?",
+                "placeholder": "Select",
+                "required": True,
+                "options": ["Yes", "No", "Unknown"],
+                "rationale": "Determines if less invasive options were tried before escalation",
+            },
+            {
+                "id": "q_duration_symptoms",
+                "field": "durationOfSymptoms",
+                "type": "text",
+                "label": "Duration of symptoms",
+                "placeholder": "e.g., 6 months",
+                "required": False,
+                "minChars": 0,
+                "maxChars": 200,
+                "rationale": "Helps assess chronicity and guideline alignment",
+            },
+        ]
+        return {"questions": questions, "metadata": {"source": "local_fallback"}}
+
+    if not api_key:
+        logger.warning("SONAR API key missing; using local fallback for follow-up questions")
+        return _local_fallback()
+
+    # Build prompt
+    system_prompt = (
+        "You are an assistant that generates targeted follow-up questions for providers submitting prior authorization requests. "
+        "Return strict JSON only with keys: questions (array) and metadata. Each question must include id, field, type, label, required, placeholder, rationale, and optionally options/minChars/maxChars. "
+        "Do not include any PHI beyond what is provided in the context. Keep questions short and actionable."
+    )
+
+    context_blob = json.dumps(pa_context, default=str)[:16000]
+    user_prompt = (
+        f"PA CONTEXT:\n{context_blob}\n\nGenerate up to {max_questions} targeted questions to clarify medical necessity and coverage for this prior authorization. "
+        "Return only JSON as specified."
+    )
+
+    payload = {
+        "model": settings.SONAR_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.15,
+        "response_format": {"type": "json_object"},
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        logger.info("Calling Sonar to generate follow-up questions")
+        data = _call_sonar(payload=payload, headers=headers, timeout=25.0)
+        content = data["choices"][0]["message"]["content"]
+        parsed = _parse_sonar_json(content)
+
+        # Basic sanitization
+        questions = parsed.get("questions", [])
+        if not isinstance(questions, list) or not questions:
+            raise ValueError("Empty questions from Sonar")
+
+        return {"questions": questions, "metadata": parsed.get("metadata", {})}
+    except Exception as exc:
+        logger.warning("Failed to generate questions via Sonar: %s; using fallback", exc)
+        return _local_fallback()

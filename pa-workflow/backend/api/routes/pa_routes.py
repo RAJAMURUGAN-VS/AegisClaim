@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Form, Body
 from fastapi.responses import FileResponse
 from uuid import UUID, uuid4, uuid5, NAMESPACE_DNS
 from typing import List, Dict, Any, Optional
@@ -10,7 +10,12 @@ import logging
 from ..schemas import pa_schemas
 from ..middleware.auth import require_role, User, get_current_user
 from core.redis_client import get_redis_pool
-from services.sonar_service import chat_with_medical_context, analyze_extracted_text, extract_medical_codes_from_text
+from services.sonar_service import (
+    chat_with_medical_context,
+    analyze_extracted_text,
+    extract_medical_codes_from_text,
+    generate_followup_questions,
+)
 from services.report_service import generate_summary_report, save_report_to_file
 
 logger = logging.getLogger(__name__)
@@ -167,12 +172,19 @@ async def submit_pa_request(
     cpt_codes: str = Form("[]"),
     date_of_service: str = Form(...),
     prior_treatment_history: Optional[str] = Form(None),
+    medication_name: Optional[str] = Form(None),
+    medication_dosage: Optional[str] = Form(None),
+    medical_necessity_summary: Optional[str] = Form(None),
+    clinical_summary: Optional[str] = Form(None),
+    reason_for_claim: Optional[str] = Form(None),
+    provider_notes: Optional[str] = Form(None),
     documents: List[UploadFile] = File(...),
     current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
 ):
     """
     Submit a new Prior Authorization request.
     Accepts the request and queues it for processing in the background.
+    Includes clinical context fields for provider justification.
     """
     pa_id = uuid4()
 
@@ -209,6 +221,12 @@ async def submit_pa_request(
         "cpt_codes": parsed_cpt,
         "date_of_service": date_of_service,
         "prior_treatment_history": prior_treatment_history,
+        "medication_name": medication_name,
+        "medication_dosage": medication_dosage,
+        "medical_necessity_summary": medical_necessity_summary,
+        "clinical_summary": clinical_summary,
+        "reason_for_claim": reason_for_claim,
+        "provider_notes": provider_notes,
         "patient_data": {
             "member_id": patient_member_id,
             "id": str(uuid4()),
@@ -646,6 +664,70 @@ async def extract_medical_codes(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to extract codes from documents: {str(e)}"
         )
+
+
+@router.post("/provider/generate-questions", response_model=pa_schemas.QuestionGenerationResponse)
+async def provider_generate_questions(
+    context: Dict[str, Any] = Body(...),
+    current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
+):
+    """Generate targeted follow-up questions for the provider based on PA context."""
+    try:
+        # Ensure context is serializable
+        context = {k: v for k, v in (context or {}).items()}
+        result = generate_followup_questions(context)
+        # Basic validation of result shape
+        questions = result.get("questions") or []
+        if not isinstance(questions, list):
+            raise ValueError("Invalid question format returned from generator")
+        return {"questions": questions, "metadata": result.get("metadata", {})}
+    except Exception as exc:
+        logger.error(f"Error generating questions: {exc}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+@router.post("/provider/ai-review", response_model=pa_schemas.AIReviewResponse)
+async def provider_ai_review(
+    submission: Dict[str, Any] = Body(...),
+    current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
+):
+    """Run an AI-assisted review on the submission. Returns score, issues, and suggestions.
+
+    Initial implementation is a lightweight rule-based check; can be extended to call Sonar.
+    """
+    try:
+        issues = []
+        suggestions = []
+        score = 100.0
+
+        # Rule: required clinical fields
+        required_fields = ["medical_necessity_summary", "clinical_summary", "reason_for_claim"]
+        for field in required_fields:
+            if not submission.get(field):
+                issues.append({"code": "MISSING_FIELD", "message": f"{field} is missing", "severity": "warning"})
+                score -= 20.0
+                suggestions.append({"field": field, "suggestedText": "Please provide concise clinical justification."})
+
+        # Rule: check documents attached
+        docs = submission.get("documents") or submission.get("document_paths") or []
+        if not docs:
+            issues.append({"code": "MISSING_DOCS", "message": "No supporting documents attached", "severity": "warning"})
+            score -= 10.0
+
+        # Normalise score
+        score = max(0.0, min(100.0, score))
+        pass_review = score >= 60.0
+
+        return {
+            "score": score,
+            "pass_review": pass_review,
+            "issues": issues,
+            "suggestions": suggestions,
+            "model_metadata": {"engine": "rule-based-v1"},
+        }
+    except Exception as exc:
+        logger.error(f"AI review failed: {exc}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI review failed")
 
 
 

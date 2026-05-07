@@ -26,6 +26,7 @@ import {
   useStepTherapy,
   useExtractCodes,
 } from '../../hooks/usePA'
+import { paService } from '../../services/pa.service'
 import { useNotifications } from '../../hooks/useNotifications'
 import type { Plan, WaitingPeriod, ExcludedProcedure, StepTherapyRule } from '../../types/pa.types'
 import { Card } from '../../components/common/Card'
@@ -58,11 +59,16 @@ const step3Schema = z.object({
   priorTreatmentHistory: z.string().optional(),
   medicationName: z.string().optional(),
   medicationDosage: z.string().optional(),
+  medicalNecessitySummary: z.string().min(20, 'Medical necessity summary must be at least 20 characters'),
+  clinicalSummary: z.string().min(20, 'Clinical summary must be at least 20 characters'),
+  reasonForClaim: z.string().min(20, 'Reason for claiming must be at least 20 characters'),
+  providerNotes: z.string().optional(),
 })
 
 const formSchema = step1Schema.merge(step2Schema).merge(step3Schema)
 
-type FormData = z.infer<typeof formSchema>
+type FormDataBase = z.infer<typeof formSchema>
+type FormData = FormDataBase & { dynamicQuestionAnswers?: Record<string, string> }
 
 interface UploadedFile {
   id: string
@@ -87,6 +93,8 @@ const PASubmissionForm: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [extractedCodes, setExtractedCodes] = useState<{ icd10: string[]; cpt: string[] }>({ icd10: [], cpt: [] })
   const [extractionMessage, setExtractionMessage] = useState('')
+  const [dynamicQuestions, setDynamicQuestions] = useState<any[]>([])
+  const [loadingDynamicQuestions, setLoadingDynamicQuestions] = useState(false)
 
   const {
     control,
@@ -107,6 +115,11 @@ const PASubmissionForm: React.FC = () => {
       priorTreatmentHistory: '',
       medicationName: '',
       medicationDosage: '',
+      medicalNecessitySummary: '',
+      clinicalSummary: '',
+      reasonForClaim: '',
+      providerNotes: '',
+      dynamicQuestionAnswers: {},
       documents: [],
     },
     mode: 'onBlur',
@@ -177,6 +190,36 @@ const PASubmissionForm: React.FC = () => {
       }
     }
   }
+
+  // Fetch dynamic questions when entering Step 3
+  React.useEffect(() => {
+    let mounted = true
+    const fetchQuestions = async () => {
+      if (currentStep !== 3) return
+      try {
+        setLoadingDynamicQuestions(true)
+        const context = {
+          patientMemberId: watch('patientMemberId'),
+          icd10Codes: watch('icd10Codes'),
+          cptCodes: watch('cptCodes'),
+          priorTreatment: watch('priorTreatmentHistory'),
+          planId: watch('planId'),
+          documentsCount: (watch('documents') || []).length,
+        }
+        const res = await paService.generateQuestions(context)
+        if (!mounted) return
+        setDynamicQuestions(res.questions || [])
+      } catch (err) {
+        console.error('Failed to load dynamic questions', err)
+      } finally {
+        if (mounted) setLoadingDynamicQuestions(false)
+      }
+    }
+
+    fetchQuestions()
+    return () => { mounted = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep])
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -349,7 +392,26 @@ const PASubmissionForm: React.FC = () => {
         priorTreatmentHistory: data.priorTreatmentHistory,
         medicationName: data.medicationName,
         medicationDosage: data.medicationDosage,
+        medicalNecessitySummary: data.medicalNecessitySummary,
+        clinicalSummary: data.clinicalSummary,
+        reasonForClaim: data.reasonForClaim,
+        providerNotes: data.providerNotes,
         documents: data.documents,
+        dynamicQuestionAnswers: data.dynamicQuestionAnswers || {},
+      }
+
+      // Run lightweight AI review (non-blocking) to surface issues before final submit
+      try {
+        const reviewInput = {
+          ...submissionData,
+          documents: (data.documents || []).map((d: File) => d.name),
+        }
+        const review = await paService.aiReview(reviewInput)
+        if (review && review.issues && review.issues.length > 0) {
+          showNotification({ type: 'warning', title: 'AI Review Issues', message: `The AI reviewer found ${review.issues.length} issues. Please review before submitting.` })
+        }
+      } catch (err) {
+        console.warn('AI review failed (non-blocking)', err)
       }
 
       console.log('⏳ [Form] Waiting for backend response (this may take up to 3 minutes)...')
@@ -986,18 +1048,20 @@ const PASubmissionForm: React.FC = () => {
   const renderStep3 = () => (
     <div className="space-y-6 relative z-10 bg-white">
       <div className="border-b border-neutral-200 pb-4 bg-white">
-        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Clinical Details</h3>
-        <p className="text-sm text-neutral-500 mt-1">Provide additional clinical information for insurance review</p>
+        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Clinical Details & Justification</h3>
+        <p className="text-sm text-neutral-500 mt-1">Provide clinical context and justification for insurance review</p>
       </div>
 
+      {/* Medical Necessity Summary */}
       <Controller
-        name="priorTreatmentHistory"
+        name="medicalNecessitySummary"
         control={control}
         render={({ field }) => (
           <div>
-            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
-              Prior Treatment History
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+              <span className="text-red-500">*</span> Medical Necessity Summary
             </label>
+            <p className="text-xs text-neutral-500 mb-2">Explain why this patient medically requires this procedure or treatment</p>
             <textarea
               {...field}
               rows={4}
@@ -1005,27 +1069,176 @@ const PASubmissionForm: React.FC = () => {
                 placeholder:text-neutral-400
                 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
                 hover:border-neutral-300 transition-all duration-150 resize-none"
-              placeholder="Describe any prior treatments..."
+              placeholder="e.g., Patient has Type 2 Diabetes with HbA1c of 9.2% despite standard therapy. This injectable therapy is medically necessary to prevent complications..."
             />
+            {errors.medicalNecessitySummary && (
+              <p className="text-xs text-red-500 mt-1">{errors.medicalNecessitySummary.message}</p>
+            )}
           </div>
         )}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Controller
-          name="medicationName"
-          control={control}
-          render={({ field }) => <Input {...field} label="Medication Name" placeholder="e.g., Humira" />}
-        />
+      {/* Clinical Summary */}
+      <Controller
+        name="clinicalSummary"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+              <span className="text-red-500">*</span> Clinical Summary
+            </label>
+            <p className="text-xs text-neutral-500 mb-2">Describe the patient's clinical presentation, current conditions, and relevant medical history</p>
+            <textarea
+              {...field}
+              rows={4}
+              className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150 resize-none"
+              placeholder="e.g., 55-year-old male with history of hypertension, Type 2 Diabetes, and hyperlipidemia. Currently on metformin and lisinopril. BMI 31. Recent labs show elevated triglycerides..."
+            />
+            {errors.clinicalSummary && (
+              <p className="text-xs text-red-500 mt-1">{errors.clinicalSummary.message}</p>
+            )}
+          </div>
+        )}
+      />
+
+      {/* Reason for Claim */}
+      <Controller
+        name="reasonForClaim"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+              <span className="text-red-500">*</span> Reason for Claiming
+            </label>
+            <p className="text-xs text-neutral-500 mb-2">Specify the specific reason for requesting insurance coverage (e.g., guideline-based therapy, failed conservative treatment, specialist recommendation)</p>
+            <textarea
+              {...field}
+              rows={3}
+              className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150 resize-none"
+              placeholder="e.g., Per ADA guidelines for inadequate glycemic control on metformin monotherapy; specialist endocrinologist recommendation; patient is unable to achieve target HbA1c with lifestyle modifications..."
+            />
+            {errors.reasonForClaim && (
+              <p className="text-xs text-red-500 mt-1">{errors.reasonForClaim.message}</p>
+            )}
+          </div>
+        )}
+      />
+
+      {/* Prior Treatment History & Medication (optional supporting details) */}
+      <div className="border-t border-neutral-200 pt-4 mt-6">
+        <h4 className="text-sm font-semibold text-neutral-700 mb-4">Additional Medical Information (Optional)</h4>
 
         <Controller
-          name="medicationDosage"
+          name="priorTreatmentHistory"
           control={control}
           render={({ field }) => (
-            <Input {...field} label="Medication Dosage" placeholder="e.g., 40mg every 2 weeks" />
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+                Prior Treatment History
+              </label>
+              <textarea
+                {...field}
+                rows={3}
+                className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                  placeholder:text-neutral-400
+                  focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                  hover:border-neutral-300 transition-all duration-150 resize-none"
+                placeholder="e.g., Patient previously tried metformin 2000mg daily for 6 months without adequate response..."
+              />
+            </div>
           )}
         />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Controller
+            name="medicationName"
+            control={control}
+            render={({ field }) => <Input {...field} label="Current Medication Name" placeholder="e.g., Humira" />}
+          />
+
+          <Controller
+            name="medicationDosage"
+            control={control}
+            render={({ field }) => (
+              <Input {...field} label="Medication Dosage" placeholder="e.g., 40mg every 2 weeks" />
+            )}
+          />
+        </div>
       </div>
+
+      {/* Dynamic follow-up questions (LLM generated) */}
+      {loadingDynamicQuestions ? (
+        <div className="p-3 bg-neutral-50 rounded">Loading follow-up questions…</div>
+      ) : dynamicQuestions.length > 0 ? (
+        <div className="space-y-4 border-t border-neutral-200 pt-4">
+          <h4 className="text-sm font-semibold text-neutral-700">Follow-up Questions</h4>
+          {dynamicQuestions.map((q: any) => (
+            <div key={q.id} className="mb-3">
+              <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">{q.label}</label>
+              {q.type === 'select' ? (
+                <Controller
+                  name={("dynamicQuestionAnswers." + q.field) as any}
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900"
+                    >
+                      <option value="">Select...</option>
+                      {(q.options || []).map((opt: string) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  )}
+                />
+              ) : (
+                <Controller
+                  name={("dynamicQuestionAnswers." + q.field) as any}
+                  control={control}
+                  render={({ field }) => (
+                    <textarea
+                      {...field}
+                      rows={q.type === 'text' ? 3 : 1}
+                      className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 resize-none"
+                      placeholder={q.placeholder || ''}
+                    />
+                  )}
+                />
+              )}
+              {q.rationale && <p className="text-xs text-neutral-500 mt-1">Why: {q.rationale}</p>}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Provider Notes */}
+      <Controller
+        name="providerNotes"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+              Additional Provider Notes
+            </label>
+            <p className="text-xs text-neutral-500 mb-2">Any additional clinical justification or context for the reviewer</p>
+            <textarea
+              {...field}
+              rows={3}
+              className="w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150 resize-none"
+              placeholder="Any additional clinical information or special considerations..."
+            />
+          </div>
+        )}
+      />
     </div>
   )
 

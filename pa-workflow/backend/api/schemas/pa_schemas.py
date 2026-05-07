@@ -69,3 +69,40 @@ class PAChatResponse(BaseModel):
     pa_id: UUID
     answer: str
     used_context_keys: List[str] = Field(default_factory=list)
+
+
+class FollowUpQuestion(BaseModel):
+    id: str
+    field: str
+    type: str
+    label: str
+    placeholder: Optional[str] = None
+    required: bool = False
+    options: Optional[List[str]] = None
+    minChars: Optional[int] = None
+    maxChars: Optional[int] = None
+    rationale: Optional[str] = None
+
+
+class QuestionGenerationResponse(BaseModel):
+    questions: List[FollowUpQuestion]
+    metadata: Optional[dict] = None
+
+
+class ReviewIssue(BaseModel):
+    code: str
+    message: str
+    severity: Literal["info", "warning", "critical"] = "warning"
+
+
+class ReviewSuggestion(BaseModel):
+    field: str
+    suggestedText: str
+
+
+class AIReviewResponse(BaseModel):
+    score: float = Field(..., ge=0.0, le=100.0)
+    pass_review: bool
+    issues: List[ReviewIssue] = Field(default_factory=list)
+    suggestions: List[ReviewSuggestion] = Field(default_factory=list)
+    model_metadata: Optional[dict] = None

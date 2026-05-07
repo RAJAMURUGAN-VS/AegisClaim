@@ -28,7 +28,7 @@ export interface Plan {
   maxClaimsPerYear?: number
 }
 
-export interface PlanDetails extends Plan {}
+export interface PlanDetails extends Plan { }
 
 export interface WaitingPeriod {
   id: number
@@ -108,6 +108,12 @@ export const paService = {
     formData.append('icd_codes', JSON.stringify(data.icd10Codes))
     formData.append('cpt_codes', JSON.stringify(data.cptCodes))
     formData.append('prior_treatment_history', data.priorTreatmentHistory || '')
+    formData.append('medication_name', data.medicationName || '')
+    formData.append('medication_dosage', data.medicationDosage || '')
+    formData.append('medical_necessity_summary', data.medicalNecessitySummary || '')
+    formData.append('clinical_summary', data.clinicalSummary || '')
+    formData.append('reason_for_claim', data.reasonForClaim || '')
+    formData.append('provider_notes', data.providerNotes || '')
 
     data.documents.forEach((file) => {
       formData.append('documents', file)
@@ -118,6 +124,7 @@ export const paService = {
     console.log('🏥 Payer ID:', data.payerId)
     console.log('📑 ICD-10 Codes:', data.icd10Codes)
     console.log('💊 CPT Codes:', data.cptCodes)
+    console.log('🏥 Medical Necessity:', data.medicalNecessitySummary?.substring(0, 50) + '...')
     console.log('📎 Documents attached:', data.documents.length)
     data.documents.forEach((doc, idx) => {
       console.log(`   [${idx + 1}] ${doc.name} (${doc.size} bytes)`)
@@ -302,6 +309,18 @@ export const paService = {
         date_to: dateTo,
       },
     })
+    return response.data
+  },
+
+  // Generate targeted follow-up questions from the backend LLM service
+  generateQuestions: async (context: Record<string, any>): Promise<{ questions: any[]; metadata?: any }> => {
+    const response = await api.post<{ questions: any[]; metadata?: any }>(`/provider/generate-questions`, context)
+    return response.data
+  },
+
+  // Run AI reviewer (returns score, issues, suggestions)
+  aiReview: async (submission: Record<string, any>): Promise<any> => {
+    const response = await api.post(`/provider/ai-review`, submission)
     return response.data
   },
 
