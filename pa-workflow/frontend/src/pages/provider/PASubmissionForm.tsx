@@ -826,7 +826,7 @@ const PASubmissionForm: React.FC = () => {
           <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
           <p className="text-neutral-700 font-semibold mb-2">Drag and drop files here</p>
           <p className="text-neutral-500 text-sm mb-4">or click to browse</p>
-          <label className="cursor-pointer inline-flex">
+          <label className="cursor-pointer inline-flex relative">
             <input
               type="file"
               multiple
@@ -834,7 +834,7 @@ const PASubmissionForm: React.FC = () => {
               onChange={handleFileSelect}
               className="hidden"
             />
-            <span className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+            <span className="px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors shadow-sm opacity-100 visible z-10">
               Browse Files
             </span>
           </label>
