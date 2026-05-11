@@ -15,6 +15,7 @@ import RealProviderStatus from './pages/provider/RealProviderStatus'
 // Adjudicator Pages
 import ReviewQueue from './pages/adjudicator/ReviewQueue'
 import ReviewDetail from './pages/adjudicator/ReviewDetail'
+import AdjudicatorReview from './pages/provider/AdjudicatorReview'
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard'
@@ -119,6 +120,7 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['ADJUDICATOR', 'MEDICAL_DIRECTOR']} />}>
               <Route path="/adjudicator/queue" element={<ReviewQueue />} />
               <Route path="/adjudicator/review/:pa_id" element={<ReviewDetail />} />
+              <Route path="/adjudicator/adjudicate/:pa_id" element={<AdjudicatorReview />} />
             </Route>
 
             {/* Admin Routes */}
