@@ -508,4 +508,16 @@ export const paService = {
     )
     return response.data
   },
+
+  // Extract full Sonar-like payload (OCR + Sonar analysis) from uploaded documents
+  extractSonarFromDocuments: async (files: File[]): Promise<any> => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    const response = await api.post<any>('/provider/extract-sonar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    return response.data
+  },
 }

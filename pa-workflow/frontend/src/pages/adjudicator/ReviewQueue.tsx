@@ -325,17 +325,17 @@ const ReviewQueue: React.FC = () => {
       {
         header: 'Action',
         accessor: (item: ReviewQueueItem) => (
-              <Button
-                size="sm"
-                variant="primary"
-                icon={Eye}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigate(`/adjudicator/adjudicate/${item.paId}`)
-                }}
-              >
-                Review
-              </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={Eye}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/adjudicator/review/${item.paId}`)
+            }}
+          >
+            Review
+          </Button>
         ),
         width: '120px',
         align: 'center',

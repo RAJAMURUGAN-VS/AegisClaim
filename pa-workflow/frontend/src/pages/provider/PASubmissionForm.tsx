@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Info,
   Calendar,
+  Loader2,
 } from 'lucide-react'
 import {
   useSubmitPA,
@@ -24,6 +25,9 @@ import {
   useWaitingPeriods,
   useExcludedProcedures,
   useStepTherapy,
+  useICDCodes,
+  useCPTCodes,
+  useExtractCodes,
 } from '../../hooks/usePA'
 import { paService } from '../../services/pa.service'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -52,6 +56,9 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   icd10Codes: z.array(z.string()).min(1, 'At least one ICD-10 code is required'),
   cptCodes: z.array(z.string()).min(1, 'At least one CPT code is required'),
+  priorTreatmentHistory: z.string().optional(),
+  medicationName: z.string().optional(),
+  medicationDosage: z.string().optional(),
 })
 
 const step3Schema = z.object({
@@ -87,7 +94,22 @@ const PASubmissionForm: React.FC = () => {
   const navigate = useNavigate()
   const { showNotification } = useNotifications()
   const [currentStep, setCurrentStep] = useState(1)
+  const [icdInput, setIcdInput] = useState('')
+  const [cptInput, setCptInput] = useState('')
+  const [icdSearch, setIcdSearch] = useState('')
+  const [cptSearch, setCptSearch] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [extractedCodes, setExtractedCodes] = useState<{ icd10: string[]; cpt: string[] }>({ icd10: [], cpt: [] })
+  const [extractionMessage, setExtractionMessage] = useState('')
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0)
+  const [extractionResult, setExtractionResult] = useState<{
+    icd10Codes: string[]
+    cptCodes: string[]
+    exactMatchFound: boolean
+    message: string
+  } | null>(null)
+  const [sonarPayload, setSonarPayload] = useState<any | null>(null)
+  const [isExtracting, setIsExtracting] = useState(false)
   const [dynamicQuestions, setDynamicQuestions] = useState<any[]>([])
   const [loadingDynamicQuestions, setLoadingDynamicQuestions] = useState(false)
 
@@ -126,6 +148,7 @@ const PASubmissionForm: React.FC = () => {
   const documents = watch('documents') || []
   const selectedPlanId = watch('planId')
 
+  const extractCodesMutation = useExtractCodes()
   const submitPAMutation = useSubmitPA()
   const { data: payers, isLoading: isLoadingPayers } = usePayers()
   const { data: plans, isLoading: isLoadingPlans } = usePlansByPayer(selectedPayerId)
@@ -160,6 +183,8 @@ const PASubmissionForm: React.FC = () => {
     isLoading: isLoadingStepTherapy,
     isFetching: isFetchingStepTherapy,
   } = useStepTherapy(selectedPlanId)
+  const { data: icdSuggestions = [] } = useICDCodes(icdSearch.trim())
+  const { data: cptSuggestions = [] } = useCPTCodes(cptSearch.trim())
   const stepTherapy = (stepTherapyData ?? []) as StepTherapyRule[]
   const isPlanMetadataLoading =
     !!selectedPlanId &&
@@ -175,7 +200,7 @@ const PASubmissionForm: React.FC = () => {
       isFetchingStepTherapy)
 
   const handleNext = () => {
-    if (currentStep < 2) {
+    if (currentStep < 3) {
       setCurrentStep((prev) => prev + 1)
     }
   }
@@ -210,10 +235,114 @@ const PASubmissionForm: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep])
 
+  React.useEffect(() => {
+    if (!isExtracting) return undefined
+
+    const loadingSteps = [
+      'Uploading document...',
+      'Detecting document type...',
+      'Running OCR extraction...',
+      'Cleaning and structuring text...',
+      'Building parsed JSON...',
+      'Saving results for review...',
+    ]
+
+    const intervalId = window.setInterval(() => {
+      setLoadingStepIndex((current) => (current + 1) % loadingSteps.length)
+    }, 1600)
+
+    return () => window.clearInterval(intervalId)
+  }, [isExtracting])
+
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1)
     }
+  }
+
+  const handleExtractCodes = async (files: File[] = documents) => {
+    if (files.length === 0) {
+      showNotification({
+        type: 'error',
+        title: 'No Documents',
+        message: 'Please upload at least one document before extracting codes.',
+      })
+      return
+    }
+
+    try {
+      setIsExtracting(true)
+      // Call the new endpoint that returns the full sonar-like payload
+      const sonarPayload = await paService.extractSonarFromDocuments(files)
+      setSonarPayload(sonarPayload)
+      setExtractionResult({
+        icd10Codes: sonarPayload.medical_codes?.icd10_codes || [],
+        cptCodes: sonarPayload.medical_codes?.cpt_codes || [],
+        exactMatchFound: !!((sonarPayload.medical_codes?.icd10_codes || []).length || (sonarPayload.medical_codes?.cpt_codes || []).length),
+        message: sonarPayload.text_analysis?.summary || 'Sonar analysis complete.',
+      })
+
+      setExtractedCodes({ icd10: sonarPayload.medical_codes?.icd10_codes || [], cpt: sonarPayload.medical_codes?.cpt_codes || [] })
+      setExtractionMessage(sonarPayload.text_analysis?.summary || '')
+      setValue('icd10Codes', sonarPayload.medical_codes?.icd10_codes || [], { shouldValidate: true })
+      setValue('cptCodes', sonarPayload.medical_codes?.cpt_codes || [], { shouldValidate: true })
+
+      showNotification({ type: 'success', title: 'Sonar Analysis Complete', message: 'Full Sonar analysis and OCR preview are available below.' })
+
+      // Store the full sonar payload for the viewer and debugging
+      setSonarPayload(sonarPayload)
+      ;(window as any).__lastSonarPayload = sonarPayload
+    } catch (error) {
+      showNotification({
+        type: 'error',
+        title: 'Extraction Failed',
+        message: error instanceof Error ? error.message : 'Could not run Sonar analysis on documents. Please try again or add codes manually.',
+      })
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  const addIcdCode = () => {
+    const trimmed = icdInput.trim().toUpperCase()
+    if (!trimmed) return
+    if (icd10Codes.includes(trimmed)) {
+      setIcdInput('')
+      return
+    }
+    setValue('icd10Codes', [...icd10Codes, trimmed], { shouldValidate: true })
+    setIcdInput('')
+  }
+
+  const removeIcdCode = (codeToRemove: string) => {
+    setValue('icd10Codes', icd10Codes.filter((code) => code !== codeToRemove), {
+      shouldValidate: true,
+    })
+    setExtractedCodes((prev) => ({
+      ...prev,
+      icd10: prev.icd10.filter((code) => code !== codeToRemove),
+    }))
+  }
+
+  const addCptCode = () => {
+    const trimmed = cptInput.trim().toUpperCase()
+    if (!trimmed) return
+    if (cptCodes.includes(trimmed)) {
+      setCptInput('')
+      return
+    }
+    setValue('cptCodes', [...cptCodes, trimmed], { shouldValidate: true })
+    setCptInput('')
+  }
+
+  const removeCptCode = (codeToRemove: string) => {
+    setValue('cptCodes', cptCodes.filter((code) => code !== codeToRemove), {
+      shouldValidate: true,
+    })
+    setExtractedCodes((prev) => ({
+      ...prev,
+      cpt: prev.cpt.filter((code) => code !== codeToRemove),
+    }))
   }
 
   const validateFile = (file: File): string | null => {
@@ -259,6 +388,7 @@ const PASubmissionForm: React.FC = () => {
       if (newFiles.length > 0) {
         const allFiles = [...documents, ...newFiles.map((f) => f.file)]
         setValue('documents', allFiles, { shouldValidate: true })
+        void handleExtractCodes(allFiles)
       }
     },
     [documents, setValue, showNotification]
@@ -380,7 +510,8 @@ const PASubmissionForm: React.FC = () => {
   const renderStepIndicator = () => {
     const steps = [
       { id: 1, label: 'Patient & Documents', description: 'Info and supporting files' },
-      { id: 2, label: 'Clinical Details', description: 'History and medications' },
+      { id: 2, label: 'Review Codes', description: 'Diagnosis & procedure codes' },
+      { id: 3, label: 'Clinical Details', description: 'History and medications' },
     ]
 
     return (
@@ -791,13 +922,307 @@ const PASubmissionForm: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Card title="Extracted OCR JSON" className="shadow-card border border-neutral-200">
+        <div className="p-8 space-y-5">
+          <p className="text-[15px] leading-7 text-slate-500">
+            The OCR response JSON is shown below in a large centered viewer.
+          </p>
+
+          {isExtracting ? (
+            <div className="min-h-[33rem] overflow-hidden rounded-[1.5rem] border border-dashed border-blue-200 bg-[#f8fbff] p-8 sm:p-10">
+              <div className="flex items-center gap-4 mb-6 pl-2 sm:pl-6">
+                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">OCR in progress</p>
+                  <p className="text-base text-slate-500">Please wait while we build the parsed JSON.</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-8 py-10 sm:px-12 sm:py-12 min-h-[24rem] flex items-center justify-center">
+                <div className="text-center max-w-xl w-full">
+                  <div className="flex items-center justify-center gap-3 mb-8">
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse" />
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:150ms]" />
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:300ms]" />
+                  </div>
+                  <p className="text-[28px] leading-tight font-semibold text-slate-900 mb-3">
+                    {[
+                      'Uploading document...',
+                      'Detecting document type...',
+                      'Running OCR extraction...',
+                      'Cleaning and structuring text...',
+                      'Building parsed JSON...',
+                      'Saving results for review...',
+                    ][loadingStepIndex]}
+                  </p>
+                  <p className="text-[15px] leading-7 text-slate-500 max-w-lg mx-auto">
+                    The extracted payload will appear here automatically once processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : extractionResult ? (
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-7">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
+                  <p className="text-xs text-slate-500">Scrollable view of the complete OCR response.</p>
+                </div>
+                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Live response
+                </div>
+              </div>
+              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-6 sm:p-7 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {JSON.stringify(sonarPayload || extractionResult, null, 2)}
+              </pre>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-7">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
+                  <p className="text-xs text-slate-500">Upload a document to generate the response.</p>
+                </div>
+                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Waiting
+                </div>
+              </div>
+              <div className="min-h-[18rem] flex items-center justify-center p-6 sm:p-8 text-center">
+                <div className="max-w-md">
+                  <p className="text-lg font-semibold text-slate-900 mb-2">No OCR JSON available yet.</p>
+                  <p className="text-sm text-slate-500">
+                    Upload supporting documents and the extracted JSON will appear here.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   )
 
   const renderStep3 = () => (
     <div className="space-y-6 relative z-10 bg-white">
       <div className="border-b border-neutral-200 pb-4 bg-white">
-        <h3 className="text-xl font-semibold text-neutral-900">Step 2: Clinical Details & Justification</h3>
+        <h3 className="text-xl font-semibold text-neutral-900">Step 2: Review Extracted Codes</h3>
+        <p className="text-sm text-neutral-500 mt-1">Medical codes extracted from your documents - review and approve</p>
+      </div>
+
+      {extractionMessage && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <p className="text-sm">{extractionMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {extractCodesMutation.isPending && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="animate-spin mr-3">
+              <div className="w-4 h-4 border-2 border-primary-500 border-t-primary-300 rounded-full" />
+            </div>
+            <p className="text-sm text-primary-700 font-medium">Extracting medical codes from documents...</p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+          <div>
+            <h4 className="font-medium text-blue-900">How Medical Codes Work</h4>
+            <div className="mt-2 space-y-2 text-sm">
+              <p className="text-blue-800">
+                <strong>ICD-10 Codes:</strong> Diagnosis codes that explain WHY the patient needs this procedure. Example: E11.9 (Type 2 Diabetes)
+              </p>
+              <p className="text-blue-800">
+                <strong>CPT Codes:</strong> Procedure codes that describe WHAT procedure you're requesting. Example: 99213 (Office visit)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+          Diagnosis Codes (ICD-10) <span className="text-danger-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={icdSearch}
+          onChange={(e) => setIcdSearch(e.target.value)}
+          placeholder="Search ICD-10 suggestions"
+          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
+        />
+        {icdSuggestions.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {icdSuggestions.slice(0, 8).map((item) => (
+              <button
+                key={item.icdCode}
+                type="button"
+                onClick={() => {
+                  if (!icd10Codes.includes(item.icdCode)) {
+                    setValue('icd10Codes', [...icd10Codes, item.icdCode], { shouldValidate: true })
+                  }
+                  setIcdSearch('')
+                }}
+                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
+              >
+                {item.icdCode}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {extractedCodes.icd10.length > 0 ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {extractedCodes.icd10.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center px-3 py-2 bg-primary-100 text-primary-700 rounded-full text-sm border border-primary-200"
+                >
+                  {code}
+                  <button type="button" onClick={() => removeIcdCode(code)} className="ml-2 hover:text-primary-900 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">Found {extractedCodes.icd10.length} diagnosis codes. Remove any that don't apply.</p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-600 mb-4">No diagnosis codes extracted from documents. You can add them manually below.</p>
+        )}
+
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+          <p className="text-xs font-medium text-neutral-700 mb-3">Add diagnosis codes manually</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={icdInput}
+              onChange={(e) => setIcdInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addIcdCode()
+                }
+              }}
+              placeholder="Type code (e.g., E11.9) and press Enter"
+              className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150"
+            />
+            <Button type="button" variant="secondary" onClick={addIcdCode}>
+              Add
+            </Button>
+          </div>
+        </div>
+
+        {errors.icd10Codes && (
+          <p className="mt-1.5 text-sm text-danger-600 flex items-center">
+            <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+            {errors.icd10Codes.message}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+          Procedure Codes (CPT) <span className="text-danger-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={cptSearch}
+          onChange={(e) => setCptSearch(e.target.value)}
+          placeholder="Search CPT suggestions"
+          className="mb-2 w-full px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500 hover:border-neutral-300 transition-all duration-150"
+        />
+        {cptSuggestions.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {cptSuggestions.slice(0, 8).map((item) => (
+              <button
+                key={item.cptCode}
+                type="button"
+                onClick={() => {
+                  if (!cptCodes.includes(item.cptCode)) {
+                    setValue('cptCodes', [...cptCodes, item.cptCode], { shouldValidate: true })
+                  }
+                  setCptSearch('')
+                }}
+                className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-sm text-primary-700 hover:bg-primary-100 transition-colors"
+              >
+                {item.cptCode}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {extractedCodes.cpt.length > 0 ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {extractedCodes.cpt.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center px-3 py-2 bg-success-100 text-success-700 rounded-full text-sm border border-success-200"
+                >
+                  {code}
+                  <button type="button" onClick={() => removeCptCode(code)} className="ml-2 hover:text-success-900 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">Found {extractedCodes.cpt.length} procedure codes. Remove any that don't apply.</p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-600 mb-4">No procedure codes extracted from documents. You can add them manually below.</p>
+        )}
+
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+          <p className="text-xs font-medium text-neutral-700 mb-3">Add procedure codes manually</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={cptInput}
+              onChange={(e) => setCptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addCptCode()
+                }
+              }}
+              placeholder="Type code (e.g., 99213) and press Enter"
+              className="flex-1 px-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900
+                placeholder:text-neutral-400
+                focus:outline-none focus:ring-[3px] focus:ring-primary-500/25 focus:border-primary-500
+                hover:border-neutral-300 transition-all duration-150"
+            />
+            <Button type="button" variant="secondary" onClick={addCptCode}>
+              Add
+            </Button>
+          </div>
+        </div>
+
+        {errors.cptCodes && (
+          <p className="mt-1.5 text-sm text-danger-600 flex items-center">
+            <AlertCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+            {errors.cptCodes.message}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderStep4 = () => (
+    <div className="space-y-6 relative z-10 bg-white">
+      <div className="border-b border-neutral-200 pb-4 bg-white">
+        <h3 className="text-xl font-semibold text-neutral-900">Step 3: Clinical Details</h3>
         <p className="text-sm text-neutral-500 mt-1">Provide clinical context and justification for insurance review</p>
       </div>
 
@@ -999,6 +1424,7 @@ const PASubmissionForm: React.FC = () => {
 
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep3()}
+          {currentStep === 3 && renderStep4()}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t">
@@ -1007,7 +1433,7 @@ const PASubmissionForm: React.FC = () => {
               Back
             </Button>
 
-            {currentStep < 2 ? (
+            {currentStep < 3 ? (
               <Button type="button" onClick={handleNext}>
                 Next Step
                 <ChevronRight className="w-4 h-4 ml-2" />

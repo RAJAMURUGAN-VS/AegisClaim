@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ArrowLeft,
   Copy,
+  Loader2,
 } from 'lucide-react'
 import { usePAStatus, useSubmitAppeal } from '../../hooks/usePA'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -28,6 +29,7 @@ const RealProviderStatus: React.FC = () => {
   const [showAppealModal, setShowAppealModal] = useState(false)
   const [appealReason, setAppealReason] = useState('')
   const [copied, setCopied] = useState(false)
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0)
 
   const { data: paData, isLoading, error, refetch } = usePAStatus(pa_id)
   const submitAppeal = useSubmitAppeal()
@@ -159,6 +161,54 @@ const RealProviderStatus: React.FC = () => {
     return format(date, pattern)
   }
 
+  useEffect(() => {
+    const ocrGeneratingStatuses = ['SUBMITTED', 'PROCESSING', 'AGENT_PROCESSING', 'SCORING', 'IN_REVIEW']
+    if (!paData || !ocrGeneratingStatuses.includes(paData.status)) {
+      return undefined
+    }
+
+    const loadingSteps = [
+      'Uploading document...',
+      'Detecting document type...',
+      'Running OCR extraction...',
+      'Cleaning and structuring text...',
+      'Building parsed JSON...',
+      'Saving results for review...',
+    ]
+
+    const intervalId = window.setInterval(() => {
+      setLoadingStepIndex((current) => (current + 1) % loadingSteps.length)
+    }, 1600)
+
+    return () => window.clearInterval(intervalId)
+  }, [paData?.status])
+
+  const getOcrJson = () => {
+    const agentA = (paData as typeof paData & { details?: any }).details?.agent_a_output
+    return agentA || null
+  }
+
+  const getOcrJsonDisplay = () => {
+    const ocrJson = getOcrJson()
+    if (ocrJson) {
+      return JSON.stringify(ocrJson, null, 2)
+    }
+
+    const agentA = (paData as typeof paData & { details?: any }).details?.agent_a_output
+    const analysisSummary = agentA?.text_analysis?.summary
+    if (analysisSummary) {
+      return JSON.stringify({ summary: analysisSummary }, null, 2)
+    }
+
+    return null
+  }
+
+  const isOcrGenerating = () => {
+    const generatingStatuses = ['SUBMITTED', 'PROCESSING', 'AGENT_PROCESSING', 'SCORING', 'IN_REVIEW']
+    const hasOcrJson = !!getOcrJson()
+    return !!paData && generatingStatuses.includes(paData.status) && !hasOcrJson
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -280,6 +330,64 @@ const RealProviderStatus: React.FC = () => {
               })}
             </div>
           </div>
+        </div>
+      </Card>
+
+      <Card title="Extracted OCR JSON" className="shadow-card border border-neutral-200">
+        <div className="p-8 space-y-5">
+          <p className="text-[15px] leading-7 text-slate-500">
+            The OCR response JSON is shown below in a large centered viewer.
+          </p>
+
+          {isOcrGenerating() ? (
+            <div className="min-h-[33rem] overflow-hidden rounded-[1.5rem] border border-dashed border-blue-200 bg-[#f8fbff] p-8 sm:p-10">
+              <div className="flex items-center gap-4 mb-6 pl-2 sm:pl-6">
+                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">OCR in progress</p>
+                  <p className="text-base text-slate-500">Please wait while we build the parsed JSON.</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-8 py-10 sm:px-12 sm:py-12 min-h-[24rem] flex items-center justify-center">
+                <div className="text-center max-w-xl w-full">
+                  <div className="flex items-center justify-center gap-3 mb-8">
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse" />
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:150ms]" />
+                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:300ms]" />
+                  </div>
+                  <p className="text-[28px] leading-tight font-semibold text-slate-900 mb-3">
+                    {[
+                      'Uploading document...',
+                      'Detecting document type...',
+                      'Running OCR extraction...',
+                      'Cleaning and structuring text...',
+                      'Building parsed JSON...',
+                      'Saving results for review...',
+                    ][loadingStepIndex]}
+                  </p>
+                  <p className="text-[15px] leading-7 text-slate-500 max-w-lg mx-auto">
+                    The extracted payload will appear here automatically once processing completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-7">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
+                  <p className="text-xs text-slate-500">Scrollable view of the complete OCR response.</p>
+                </div>
+                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Live response
+                </div>
+              </div>
+              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-6 sm:p-7 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {getOcrJsonDisplay() || 'No OCR JSON available yet.'}
+              </pre>
+            </div>
+          )}
         </div>
       </Card>
 

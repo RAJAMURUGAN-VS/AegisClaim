@@ -666,6 +666,86 @@ async def extract_medical_codes(
         )
 
 
+@router.post("/provider/extract-sonar")
+async def extract_sonar_payload(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
+):
+    """
+    Extract OCR text, run medical code extraction and Sonar analysis,
+    and return a composed Sonar-like payload for immediate frontend preview.
+    """
+    import tempfile
+    from pathlib import Path
+    from services.ocr_service import extract_text_from_image, extract_text_from_pdf
+    from datetime import datetime
+
+    try:
+        all_extracted_text = []
+        ocr_results = []
+
+        for file in files:
+            if file.filename is None:
+                continue
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp_file:
+                content = await file.read()
+                temp_file.write(content)
+                temp_path = temp_file.name
+
+            try:
+                file_ext = Path(file.filename).suffix.lower()
+                if file_ext == ".pdf":
+                    text, confidence, page_count = extract_text_from_pdf(temp_path)
+                elif file_ext in [".jpg", ".jpeg", ".png", ".tiff", ".tif"]:
+                    text, confidence = extract_text_from_image(temp_path)
+                    page_count = 1
+                else:
+                    logger.warning(f"Unsupported file type for sonar extraction: {file_ext}")
+                    continue
+
+                if text:
+                    all_extracted_text.append(text)
+                    ocr_results.append({
+                        "document_path": str(temp_path),
+                        "full_text": text,
+                        "confidence_score": float(confidence) if confidence is not None else None,
+                        "low_confidence": False,
+                        "page_count": page_count,
+                    })
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
+
+        combined_text = "\n\n".join(all_extracted_text)
+
+        # Extract codes and run Sonar analysis
+        codes = extract_medical_codes_from_text(combined_text)
+        text_analysis = analyze_extracted_text(combined_text)
+
+        payload = {
+            "pa_id": None,
+            "fhir_bundle": None,
+            "ocr_results": ocr_results,
+            "medical_codes": {
+                "icd10_codes": codes.get("icd10Codes", []),
+                "cpt_codes": codes.get("cptCodes", []),
+                "rxnorm_codes": [],
+                "negated_codes": [],
+                "extraction_confidence": None,
+            },
+            "text_analysis": text_analysis,
+            "missing_fields": [],
+            "overall_confidence": None,
+            "flagged_for_review": False,
+            "processed_at": datetime.utcnow().isoformat() + "Z",
+        }
+
+        return payload
+    except Exception as exc:
+        logger.error(f"Failed to build sonar payload: {exc}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
 @router.post("/provider/generate-questions", response_model=pa_schemas.QuestionGenerationResponse)
 async def provider_generate_questions(
     context: Dict[str, Any] = Body(...),
