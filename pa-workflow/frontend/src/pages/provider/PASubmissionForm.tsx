@@ -291,7 +291,7 @@ const PASubmissionForm: React.FC = () => {
 
       // Store the full sonar payload for the viewer and debugging
       setSonarPayload(sonarPayload)
-      ;(window as any).__lastSonarPayload = sonarPayload
+        ; (window as any).__lastSonarPayload = sonarPayload
     } catch (error) {
       showNotification({
         type: 'error',

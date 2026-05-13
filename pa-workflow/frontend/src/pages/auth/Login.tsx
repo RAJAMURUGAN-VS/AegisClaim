@@ -339,7 +339,7 @@ const Login: React.FC = () => {
           {/* Demo Credentials */}
           <div className="mt-8 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
             <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
-              Demo Credentials (password: "password")
+              Demo Credentials (all use "password")
             </p>
             <div className="grid grid-cols-2 gap-2">
               {demoCredentials.map((cred) => (
