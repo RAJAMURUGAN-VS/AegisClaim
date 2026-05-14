@@ -11,9 +11,12 @@ import {
   FileText,
   AlertCircle,
   CheckCircle2,
+  CheckCircle,
   Info,
   Calendar,
   Loader2,
+  Sparkles,
+  Shield,
 } from 'lucide-react'
 import {
   useSubmitPA,
@@ -112,6 +115,10 @@ const PASubmissionForm: React.FC = () => {
   const [isExtracting, setIsExtracting] = useState(false)
   const [dynamicQuestions, setDynamicQuestions] = useState<any[]>([])
   const [loadingDynamicQuestions, setLoadingDynamicQuestions] = useState(false)
+  const [pipelineOcrSteps, setPipelineOcrSteps] = useState(0)
+  const [pipelineSonarSteps, setPipelineSonarSteps] = useState(0)
+  const pipelineOcrMaxSteps = 7
+  const pipelineSonarMaxSteps = 6
 
   const {
     control,
@@ -253,6 +260,51 @@ const PASubmissionForm: React.FC = () => {
 
     return () => window.clearInterval(intervalId)
   }, [isExtracting])
+
+  React.useEffect(() => {
+    if (!isExtracting || documents.length === 0) {
+      setPipelineOcrSteps(0)
+      setPipelineSonarSteps(0)
+      return undefined
+    }
+
+    setPipelineOcrSteps(1)
+    const timers: number[] = []
+    let ocrInterval: number | undefined
+    let sonarInterval: number | undefined
+
+    const startSonar = () => {
+      setPipelineSonarSteps(1)
+      let sonarIndex = 1
+      sonarInterval = window.setInterval(() => {
+        sonarIndex += 1
+        setPipelineSonarSteps(Math.min(sonarIndex, pipelineSonarMaxSteps))
+        if (sonarIndex >= pipelineSonarMaxSteps && sonarInterval) {
+          window.clearInterval(sonarInterval)
+        }
+      }, 900)
+      timers.push(sonarInterval)
+    }
+
+    let ocrIndex = 1
+    ocrInterval = window.setInterval(() => {
+      ocrIndex += 1
+      setPipelineOcrSteps(Math.min(ocrIndex, pipelineOcrMaxSteps))
+
+      if (ocrIndex >= pipelineOcrMaxSteps && ocrInterval) {
+        window.clearInterval(ocrInterval)
+        timers.push(window.setTimeout(startSonar, 650))
+      }
+    }, 850)
+
+    timers.push(ocrInterval)
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+      if (ocrInterval) window.clearInterval(ocrInterval)
+      if (sonarInterval) window.clearInterval(sonarInterval)
+    }
+  }, [isExtracting, documents.length])
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -921,6 +973,172 @@ const PASubmissionForm: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/* Pipeline Preview - Always Visible */}
+        <div className="mt-8 space-y-4">
+          <Card
+            title="Processing Pipeline"
+            subtitle="Real-time workflow stages"
+            className="shadow-card border border-neutral-200"
+          >
+            <div className="p-6 space-y-4">
+              {documents.length === 0 ? (
+                // Placeholder State
+                <div className="border-2 border-dashed border-neutral-300 rounded-lg bg-gradient-to-br from-neutral-50 to-neutral-100 p-12 text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="rounded-full bg-neutral-200 p-4">
+                      <Upload className="w-6 h-6 text-neutral-500" />
+                    </div>
+                  </div>
+                  <h5 className="text-lg font-semibold text-slate-900 mb-2">Ready to Process</h5>
+                  <p className="text-sm text-slate-500 mb-4">
+                    Upload clinical documents above to start the automated pipeline. Your documents will be processed through OCR extraction, AI analysis, and clinical scoring.
+                  </p>
+                  <div className="flex items-center justify-center gap-4 text-xs text-slate-500 mt-6">
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-4 h-4 mb-1 text-blue-500" />
+                      <span>OCR</span>
+                    </div>
+                    <div className="text-slate-400">→</div>
+                    <div className="flex flex-col items-center">
+                      <Sparkles className="w-4 h-4 mb-1 text-indigo-500" />
+                      <span>Sonar</span>
+                    </div>
+                    <div className="text-slate-400">→</div>
+                    <div className="flex flex-col items-center">
+                      <Shield className="w-4 h-4 mb-1 text-emerald-500" />
+                      <span>Final</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Active Pipeline States
+                <>
+                  {/* OCR Stage */}
+                  <div className="border border-blue-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-5 overflow-hidden">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <h4 className="font-semibold text-slate-900">OCR Extraction</h4>
+                      </div>
+                      <div
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          pipelineOcrSteps === 0
+                            ? 'bg-slate-100 text-slate-600'
+                            : pipelineOcrSteps < pipelineOcrMaxSteps
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {pipelineOcrSteps === 0
+                          ? 'Idle'
+                          : pipelineOcrSteps < pipelineOcrMaxSteps
+                            ? 'Processing...'
+                            : 'Complete'}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {Array.from({ length: pipelineOcrMaxSteps }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-center text-sm transition-all duration-200 ${
+                            i < pipelineOcrSteps ? 'opacity-100' : 'opacity-30'
+                          }`}
+                        >
+                          {i < pipelineOcrSteps - 1 ? (
+                            <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
+                          ) : i === pipelineOcrSteps - 1 ? (
+                            <Loader2 className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 animate-spin" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border-2 border-slate-300 mr-2 flex-shrink-0" />
+                          )}
+                          <span className={i < pipelineOcrSteps ? 'text-slate-700' : 'text-slate-400'}>
+                            {['Parsing document', 'Scanning text', 'Extracting content', 'Structuring data', 'Validating fields', 'Building JSON', 'Finalizing'][i]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sonar Stage */}
+                  {pipelineOcrSteps >= pipelineOcrMaxSteps && (
+                    <div className="border border-indigo-200 rounded-lg bg-gradient-to-br from-indigo-50 to-white p-5 overflow-hidden">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-indigo-600" />
+                          <h4 className="font-semibold text-slate-900">Sonar Analysis</h4>
+                        </div>
+                        <div
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            pipelineSonarSteps === 0
+                              ? 'bg-slate-100 text-slate-600'
+                              : pipelineSonarSteps < pipelineSonarMaxSteps
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {pipelineSonarSteps === 0
+                            ? 'Waiting'
+                            : pipelineSonarSteps < pipelineSonarMaxSteps
+                              ? 'Processing...'
+                              : 'Complete'}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {Array.from({ length: pipelineSonarMaxSteps }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`flex items-center text-sm transition-all duration-200 ${
+                              i < pipelineSonarSteps ? 'opacity-100' : 'opacity-30'
+                            }`}
+                          >
+                            {i < pipelineSonarSteps - 1 ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
+                            ) : i === pipelineSonarSteps - 1 ? (
+                              <Loader2 className="w-4 h-4 text-indigo-500 mr-2 flex-shrink-0 animate-spin" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border-2 border-slate-300 mr-2 flex-shrink-0" />
+                            )}
+                            <span className={i < pipelineSonarSteps ? 'text-slate-700' : 'text-slate-400'}>
+                              {[
+                                'Analyzing medical codes',
+                                'Extracting procedures',
+                                'Mapping diagnoses',
+                                'Scoring medical necessity',
+                                'Cross-referencing guidelines',
+                                'Generating summary',
+                              ][i]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Final Response Stage */}
+                  {pipelineSonarSteps >= pipelineSonarMaxSteps && (
+                    <div className="border border-emerald-200 rounded-lg bg-gradient-to-br from-emerald-50 to-white p-5 overflow-hidden">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-5 h-5 text-emerald-600" />
+                          <h4 className="font-semibold text-slate-900">Final Response</h4>
+                        </div>
+                        <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          Ready
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        <p>✓ FHIR-compliant response bundle</p>
+                        <p className="mt-1">✓ Clinical scoring completed</p>
+                        <p className="mt-1">✓ Ready for reviewer submission</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
 
       <Card title="Extracted OCR JSON" className="shadow-card border border-neutral-200">
@@ -930,23 +1148,23 @@ const PASubmissionForm: React.FC = () => {
           </p>
 
           {isExtracting ? (
-            <div className="min-h-[33rem] overflow-hidden rounded-[1.5rem] border border-dashed border-blue-200 bg-[#f8fbff] p-8 sm:p-10">
-              <div className="flex items-center gap-4 mb-6 pl-2 sm:pl-6">
-                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            <div className="min-h-[30rem] overflow-hidden rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">OCR in progress</p>
-                  <p className="text-base text-slate-500">Please wait while we build the parsed JSON.</p>
+                  <p className="font-semibold text-slate-900">OCR in progress</p>
+                  <p className="text-sm text-slate-500">Please wait while we build the parsed JSON.</p>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-8 py-10 sm:px-12 sm:py-12 min-h-[24rem] flex items-center justify-center">
-                <div className="text-center max-w-xl w-full">
-                  <div className="flex items-center justify-center gap-3 mb-8">
-                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse" />
-                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:150ms]" />
-                    <span className="h-3 w-3 rounded-full bg-blue-500/80 animate-pulse [animation-delay:300ms]" />
+              <div className="rounded-xl bg-white/90 border border-slate-200 p-6 sm:p-8 min-h-[22rem] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                  <div className="flex items-center justify-center gap-2 mb-5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:150ms]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:300ms]" />
                   </div>
-                  <p className="text-[28px] leading-tight font-semibold text-slate-900 mb-3">
+                  <p className="text-xl font-semibold text-slate-900 mb-2">
                     {[
                       'Uploading document...',
                       'Detecting document type...',
@@ -956,7 +1174,7 @@ const PASubmissionForm: React.FC = () => {
                       'Saving results for review...',
                     ][loadingStepIndex]}
                   </p>
-                  <p className="text-[15px] leading-7 text-slate-500 max-w-lg mx-auto">
+                  <p className="text-sm text-slate-500 leading-6">
                     The extracted payload will appear here automatically once processing completes.
                   </p>
                 </div>
@@ -964,7 +1182,7 @@ const PASubmissionForm: React.FC = () => {
             </div>
           ) : extractionResult ? (
             <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-7">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-4 sm:px-6">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
                   <p className="text-xs text-slate-500">Scrollable view of the complete OCR response.</p>
@@ -973,7 +1191,7 @@ const PASubmissionForm: React.FC = () => {
                   Live response
                 </div>
               </div>
-              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-6 sm:p-7 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
                 {JSON.stringify(sonarPayload || extractionResult, null, 2)}
               </pre>
             </div>
