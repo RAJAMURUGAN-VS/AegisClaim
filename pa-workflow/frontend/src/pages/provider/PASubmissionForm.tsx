@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -112,7 +112,9 @@ const PASubmissionForm: React.FC = () => {
     message: string
   } | null>(null)
   const [sonarPayload, setSonarPayload] = useState<any | null>(null)
+  const [ocrJson, setOcrJson] = useState<any | null>(null)
   const [isExtracting, setIsExtracting] = useState(false)
+  const [finalJson, setFinalJson] = useState<any | null>(null)
   const [dynamicQuestions, setDynamicQuestions] = useState<any[]>([])
   const [loadingDynamicQuestions, setLoadingDynamicQuestions] = useState(false)
   const [pipelineOcrSteps, setPipelineOcrSteps] = useState(0)
@@ -206,72 +208,12 @@ const PASubmissionForm: React.FC = () => {
       isLoadingStepTherapy ||
       isFetchingStepTherapy)
 
-  const handleNext = () => {
-    if (currentStep < 3) {
-      setCurrentStep((prev) => prev + 1)
-    }
-  }
 
-  // Fetch dynamic questions when entering Step 2
-  React.useEffect(() => {
-    let mounted = true
-    const fetchQuestions = async () => {
-      if (currentStep !== 2) return
-      try {
-        setLoadingDynamicQuestions(true)
-        const context = {
-          patientMemberId: watch('patientMemberId'),
-          icd10Codes: watch('icd10Codes'),
-          cptCodes: watch('cptCodes'),
-          priorTreatment: watch('priorTreatmentHistory'),
-          planId: watch('planId'),
-          documentsCount: (watch('documents') || []).length,
-        }
-        const res = await paService.generateQuestions(context)
-        if (!mounted) return
-        setDynamicQuestions(res.questions || [])
-      } catch (err) {
-        console.error('Failed to load dynamic questions', err)
-      } finally {
-        if (mounted) setLoadingDynamicQuestions(false)
-      }
-    }
-
-    fetchQuestions()
-    return () => { mounted = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep])
-
-  React.useEffect(() => {
-    if (!isExtracting) return undefined
-
-    const loadingSteps = [
-      'Uploading document...',
-      'Detecting document type...',
-      'Running OCR extraction...',
-      'Cleaning and structuring text...',
-      'Building parsed JSON...',
-      'Saving results for review...',
-    ]
-
-    const intervalId = window.setInterval(() => {
-      setLoadingStepIndex((current) => (current + 1) % loadingSteps.length)
-    }, 1600)
-
-    return () => window.clearInterval(intervalId)
-  }, [isExtracting])
-
-  React.useEffect(() => {
-    if (!isExtracting || documents.length === 0) {
-      setPipelineOcrSteps(0)
-      setPipelineSonarSteps(0)
-      return undefined
-    }
-
-    setPipelineOcrSteps(1)
+  useEffect(() => {
+    // Timers for pipeline preview animation
+    let ocrInterval: number | null = null
+    let sonarInterval: number | null = null
     const timers: number[] = []
-    let ocrInterval: number | undefined
-    let sonarInterval: number | undefined
 
     const startSonar = () => {
       setPipelineSonarSteps(1)
@@ -312,6 +254,12 @@ const PASubmissionForm: React.FC = () => {
     }
   }
 
+  const handleNext = () => {
+    if (currentStep < 3) {
+      setCurrentStep((prev) => prev + 1)
+    }
+  }
+
   const handleExtractCodes = async (files: File[] = documents) => {
     if (files.length === 0) {
       showNotification({
@@ -323,27 +271,40 @@ const PASubmissionForm: React.FC = () => {
     }
 
     try {
+      // Reset previous states and start synchronous OCR -> Sonar -> Final flow
       setIsExtracting(true)
-      // Call the new endpoint that returns the full sonar-like payload
-      const sonarPayload = await paService.extractSonarFromDocuments(files)
-      setSonarPayload(sonarPayload)
+      setOcrJson(null)
+      setSonarPayload(null)
+      setFinalJson(null)
+
+      // 1) OCR-only extraction (display immediately)
+      const ocrResult = await paService.extractOcrFromDocuments(files)
+      setOcrJson(ocrResult)
+
+      // 2) Sonar/full analysis (wait for completion, then display)
+      const sonarResult = await paService.extractSonarFromDocuments(files)
+      setSonarPayload(sonarResult)
       setExtractionResult({
-        icd10Codes: sonarPayload.medical_codes?.icd10_codes || [],
-        cptCodes: sonarPayload.medical_codes?.cpt_codes || [],
-        exactMatchFound: !!((sonarPayload.medical_codes?.icd10_codes || []).length || (sonarPayload.medical_codes?.cpt_codes || []).length),
-        message: sonarPayload.text_analysis?.summary || 'Sonar analysis complete.',
+        icd10Codes: sonarResult.medical_codes?.icd10_codes || [],
+        cptCodes: sonarResult.medical_codes?.cpt_codes || [],
+        exactMatchFound: !!((sonarResult.medical_codes?.icd10_codes || []).length || (sonarResult.medical_codes?.cpt_codes || []).length),
+        message: sonarResult.text_analysis?.summary || 'Sonar analysis complete.',
       })
-
-      setExtractedCodes({ icd10: sonarPayload.medical_codes?.icd10_codes || [], cpt: sonarPayload.medical_codes?.cpt_codes || [] })
-      setExtractionMessage(sonarPayload.text_analysis?.summary || '')
-      setValue('icd10Codes', sonarPayload.medical_codes?.icd10_codes || [], { shouldValidate: true })
-      setValue('cptCodes', sonarPayload.medical_codes?.cpt_codes || [], { shouldValidate: true })
-
+      setExtractedCodes({ icd10: sonarResult.medical_codes?.icd10_codes || [], cpt: sonarResult.medical_codes?.cpt_codes || [] })
+      setExtractionMessage(sonarResult.text_analysis?.summary || '')
+      setValue('icd10Codes', sonarResult.medical_codes?.icd10_codes || [], { shouldValidate: true })
+      setValue('cptCodes', sonarResult.medical_codes?.cpt_codes || [], { shouldValidate: true })
       showNotification({ type: 'success', title: 'Sonar Analysis Complete', message: 'Full Sonar analysis and OCR preview are available below.' })
 
-      // Store the full sonar payload for the viewer and debugging
-      setSonarPayload(sonarPayload)
-        ; (window as any).__lastSonarPayload = sonarPayload
+      // 3) Final JSON: attempt to use fhir_bundle from sonar result or synthesize small final payload
+      const finalPayload = sonarResult.fhir_bundle || {
+        pa_id: null,
+        generated_at: new Date().toISOString(),
+        medical_codes: sonarResult.medical_codes || {},
+        text_analysis: sonarResult.text_analysis || {},
+      }
+      setFinalJson(finalPayload)
+        ; (window as any).__lastSonarPayload = sonarResult
     } catch (error) {
       showNotification({
         type: 'error',
@@ -1022,33 +983,36 @@ const PASubmissionForm: React.FC = () => {
                         <h4 className="font-semibold text-slate-900">OCR Extraction</h4>
                       </div>
                       <div
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          pipelineOcrSteps === 0
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${ocrJson || pipelineOcrSteps >= pipelineOcrMaxSteps
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : pipelineOcrSteps === 0
                             ? 'bg-slate-100 text-slate-600'
-                            : pipelineOcrSteps < pipelineOcrMaxSteps
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-emerald-100 text-emerald-700'
-                        }`}
+                            : 'bg-blue-100 text-blue-700'
+                          }`}
                       >
-                        {pipelineOcrSteps === 0
-                          ? 'Idle'
-                          : pipelineOcrSteps < pipelineOcrMaxSteps
-                            ? 'Processing...'
-                            : 'Complete'}
+                        {ocrJson || pipelineOcrSteps >= pipelineOcrMaxSteps
+                          ? 'Complete'
+                          : pipelineOcrSteps === 0
+                            ? 'Idle'
+                            : 'Processing...'}
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       {Array.from({ length: pipelineOcrMaxSteps }).map((_, i) => (
                         <div
                           key={i}
-                          className={`flex items-center text-sm transition-all duration-200 ${
-                            i < pipelineOcrSteps ? 'opacity-100' : 'opacity-30'
-                          }`}
+                          className={`flex items-center text-sm transition-all duration-200 ${i < pipelineOcrSteps ? 'opacity-100' : 'opacity-30'
+                            }`}
                         >
                           {i < pipelineOcrSteps - 1 ? (
                             <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
                           ) : i === pipelineOcrSteps - 1 ? (
-                            <Loader2 className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 animate-spin" />
+                            // Show loader only if OCR JSON not yet available
+                            !ocrJson ? (
+                              <Loader2 className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
+                            )
                           ) : (
                             <div className="w-4 h-4 rounded-full border-2 border-slate-300 mr-2 flex-shrink-0" />
                           )}
@@ -1069,33 +1033,36 @@ const PASubmissionForm: React.FC = () => {
                           <h4 className="font-semibold text-slate-900">Sonar Analysis</h4>
                         </div>
                         <div
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            pipelineSonarSteps === 0
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${sonarPayload || pipelineSonarSteps >= pipelineSonarMaxSteps
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : pipelineSonarSteps === 0
                               ? 'bg-slate-100 text-slate-600'
-                              : pipelineSonarSteps < pipelineSonarMaxSteps
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                          }`}
+                              : 'bg-indigo-100 text-indigo-700'
+                            }`}
                         >
-                          {pipelineSonarSteps === 0
-                            ? 'Waiting'
-                            : pipelineSonarSteps < pipelineSonarMaxSteps
-                              ? 'Processing...'
-                              : 'Complete'}
+                          {sonarPayload || pipelineSonarSteps >= pipelineSonarMaxSteps
+                            ? 'Complete'
+                            : pipelineSonarSteps === 0
+                              ? 'Waiting'
+                              : 'Processing...'}
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         {Array.from({ length: pipelineSonarMaxSteps }).map((_, i) => (
                           <div
                             key={i}
-                            className={`flex items-center text-sm transition-all duration-200 ${
-                              i < pipelineSonarSteps ? 'opacity-100' : 'opacity-30'
-                            }`}
+                            className={`flex items-center text-sm transition-all duration-200 ${i < pipelineSonarSteps ? 'opacity-100' : 'opacity-30'
+                              }`}
                           >
                             {i < pipelineSonarSteps - 1 ? (
                               <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
                             ) : i === pipelineSonarSteps - 1 ? (
-                              <Loader2 className="w-4 h-4 text-indigo-500 mr-2 flex-shrink-0 animate-spin" />
+                              // Show loader only while Sonar payload not yet received
+                              !sonarPayload ? (
+                                <Loader2 className="w-4 h-4 text-indigo-500 mr-2 flex-shrink-0 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 text-emerald-500 mr-2 flex-shrink-0" />
+                              )
                             ) : (
                               <div className="w-4 h-4 rounded-full border-2 border-slate-300 mr-2 flex-shrink-0" />
                             )}
@@ -1147,75 +1114,55 @@ const PASubmissionForm: React.FC = () => {
             The OCR response JSON is shown below in a large centered viewer.
           </p>
 
-          {isExtracting ? (
-            <div className="min-h-[30rem] overflow-hidden rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-6 sm:p-8">
-              <div className="flex items-center gap-3 mb-5">
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                <div>
-                  <p className="font-semibold text-slate-900">OCR in progress</p>
-                  <p className="text-sm text-slate-500">Please wait while we build the parsed JSON.</p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-white/90 border border-slate-200 p-6 sm:p-8 min-h-[22rem] flex items-center justify-center">
-                <div className="text-center max-w-md">
-                  <div className="flex items-center justify-center gap-2 mb-5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:150ms]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse [animation-delay:300ms]" />
-                  </div>
-                  <p className="text-xl font-semibold text-slate-900 mb-2">
-                    {[
-                      'Uploading document...',
-                      'Detecting document type...',
-                      'Running OCR extraction...',
-                      'Cleaning and structuring text...',
-                      'Building parsed JSON...',
-                      'Saving results for review...',
-                    ][loadingStepIndex]}
-                  </p>
-                  <p className="text-sm text-slate-500 leading-6">
-                    The extracted payload will appear here automatically once processing completes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : extractionResult ? (
+          <div className="space-y-4">
+            {/* OCR JSON Panel */}
             <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-4 sm:px-6">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
-                  <p className="text-xs text-slate-500">Scrollable view of the complete OCR response.</p>
+                  <p className="text-xs text-slate-500">Scrollable view of the OCR extraction results.</p>
                 </div>
-                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  Live response
+                <div className={`rounded-full px-3 py-1 text-xs font-medium ${ocrJson ? 'bg-primary/10 text-primary' : isExtracting ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                  {ocrJson ? 'Available' : isExtracting ? 'Processing' : 'Waiting'}
                 </div>
               </div>
-              <pre className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
-                {JSON.stringify(sonarPayload || extractionResult, null, 2)}
+              <pre className="max-h-[26rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {ocrJson ? JSON.stringify(ocrJson, null, 2) : (isExtracting ? 'Running OCR... this may take a few seconds.' : 'No OCR results yet. Upload a document to start.')}
               </pre>
             </div>
-          ) : (
+
+            {/* Sonar JSON Panel */}
             <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-7">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-4 sm:px-6">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Parsed OCR JSON</p>
-                  <p className="text-xs text-slate-500">Upload a document to generate the response.</p>
+                  <p className="text-sm font-semibold text-slate-900">Sonar Analysis JSON</p>
+                  <p className="text-xs text-slate-500">AI analysis and extracted medical codes.</p>
                 </div>
-                <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  Waiting
-                </div>
-              </div>
-              <div className="min-h-[18rem] flex items-center justify-center p-6 sm:p-8 text-center">
-                <div className="max-w-md">
-                  <p className="text-lg font-semibold text-slate-900 mb-2">No OCR JSON available yet.</p>
-                  <p className="text-sm text-slate-500">
-                    Upload supporting documents and the extracted JSON will appear here.
-                  </p>
+                <div className={`rounded-full px-3 py-1 text-xs font-medium ${sonarPayload ? 'bg-indigo-100 text-indigo-700' : ocrJson ? 'bg-neutral-100 text-neutral-500' : 'bg-neutral-100 text-neutral-500'}`}>
+                  {sonarPayload ? 'Available' : ocrJson ? 'Waiting' : 'Waiting'}
                 </div>
               </div>
+              <pre className="max-h-[26rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {sonarPayload ? JSON.stringify(sonarPayload, null, 2) : (ocrJson ? 'Sonar analysis pending — will appear after OCR completes.' : 'Sonar results will appear here after OCR.')}
+              </pre>
             </div>
-          )}
+
+            {/* Final JSON Panel */}
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-4 sm:px-6">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Final Response JSON</p>
+                  <p className="text-xs text-slate-500">Final FHIR-like response or synthesized bundle.</p>
+                </div>
+                <div className={`rounded-full px-3 py-1 text-xs font-medium ${finalJson ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                  {finalJson ? 'Ready' : 'Waiting'}
+                </div>
+              </div>
+              <pre className="max-h-[26rem] overflow-auto whitespace-pre-wrap break-words p-5 sm:p-6 text-sm leading-6 text-neutral-800 bg-[linear-gradient(180deg,rgba(248,250,252,0.95),rgba(255,255,255,1))]">
+                {finalJson ? JSON.stringify(finalJson, null, 2) : 'Final response will be displayed here when available.'}
+              </pre>
+            </div>
+          </div>
         </div>
       </Card>
     </div>

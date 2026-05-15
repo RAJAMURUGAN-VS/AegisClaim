@@ -251,26 +251,24 @@ const WorkflowStepList: React.FC<{
         return (
           <div
             key={step}
-            className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${
-              isFailed
+            className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${isFailed
                 ? 'border-rose-500/30 bg-rose-500/10'
                 : isComplete
                   ? 'border-emerald-500/25 bg-emerald-500/10'
                   : isCurrent
                     ? 'border-sky-500/30 bg-sky-500/10'
                     : 'border-slate-800 bg-slate-950/50'
-            }`}
+              }`}
           >
             <div
-              className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${
-                isFailed
+              className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${isFailed
                   ? 'border-rose-500/30 bg-rose-500/20 text-rose-200'
                   : isComplete
                     ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-200'
                     : isCurrent
                       ? 'border-sky-500/30 bg-sky-500/20 text-sky-100'
                       : 'border-slate-700 bg-slate-900 text-slate-400'
-              }`}
+                }`}
             >
               {isFailed ? (
                 <XCircle className="h-4 w-4" />

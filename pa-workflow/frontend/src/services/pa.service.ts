@@ -520,4 +520,15 @@ export const paService = {
 
     return response.data
   },
+  // Extract OCR-only payload for immediate preview
+  extractOcrFromDocuments: async (files: File[]): Promise<any> => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    const response = await api.post<any>('/provider/extract-ocr', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    return response.data
+  },
 }

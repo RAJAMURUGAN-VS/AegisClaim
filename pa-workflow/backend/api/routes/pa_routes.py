@@ -725,7 +725,6 @@ async def extract_sonar_payload(
         payload = {
             "pa_id": None,
             "fhir_bundle": None,
-            "ocr_results": ocr_results,
             "medical_codes": {
                 "icd10_codes": codes.get("icd10Codes", []),
                 "cpt_codes": codes.get("cptCodes", []),
@@ -743,6 +742,59 @@ async def extract_sonar_payload(
         return payload
     except Exception as exc:
         logger.error(f"Failed to build sonar payload: {exc}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+@router.post("/provider/extract-ocr")
+async def extract_ocr_payload(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(require_role(["PROVIDER", "ADMIN"]))
+):
+    """
+    Run OCR-only extraction on uploaded documents and return the OCR JSON results immediately.
+    """
+    import tempfile
+    from pathlib import Path
+    from services.ocr_service import extract_text_from_image, extract_text_from_pdf
+    from datetime import datetime
+
+    try:
+        ocr_results = []
+
+        for file in files:
+            if file.filename is None:
+                continue
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp_file:
+                content = await file.read()
+                temp_file.write(content)
+                temp_path = temp_file.name
+
+            try:
+                file_ext = Path(file.filename).suffix.lower()
+                if file_ext == ".pdf":
+                    text, confidence, page_count = extract_text_from_pdf(temp_path)
+                elif file_ext in [".jpg", ".jpeg", ".png", ".tiff", ".tif"]:
+                    text, confidence = extract_text_from_image(temp_path)
+                    page_count = 1
+                else:
+                    logger.warning(f"Unsupported file type for ocr extraction: {file_ext}")
+                    continue
+
+                if text:
+                    ocr_results.append({
+                        "document_path": str(temp_path),
+                        "full_text": text,
+                        "confidence_score": float(confidence) if confidence is not None else None,
+                        "low_confidence": False,
+                        "page_count": page_count,
+                    })
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
+
+        return {"ocr_results": ocr_results, "processed_at": datetime.utcnow().isoformat() + "Z"}
+    except Exception as exc:
+        logger.error(f"Failed to run OCR-only extraction: {exc}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
