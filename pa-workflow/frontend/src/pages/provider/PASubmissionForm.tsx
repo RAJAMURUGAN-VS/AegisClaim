@@ -119,6 +119,7 @@ const PASubmissionForm: React.FC = () => {
   const [loadingDynamicQuestions, setLoadingDynamicQuestions] = useState(false)
   const [pipelineOcrSteps, setPipelineOcrSteps] = useState(0)
   const [pipelineSonarSteps, setPipelineSonarSteps] = useState(0)
+  const [hasSelectedPlan, setHasSelectedPlan] = useState(false)
   const pipelineOcrMaxSteps = 7
   const pipelineSonarMaxSteps = 6
 
@@ -156,6 +157,7 @@ const PASubmissionForm: React.FC = () => {
   const cptCodes = watch('cptCodes') || []
   const documents = watch('documents') || []
   const selectedPlanId = watch('planId')
+  const canUploadDocuments = hasSelectedPlan && !!selectedPlanId
 
   const extractCodesMutation = useExtractCodes()
   const submitPAMutation = useSubmitPA()
@@ -261,6 +263,15 @@ const PASubmissionForm: React.FC = () => {
   }
 
   const handleExtractCodes = async (files: File[] = documents) => {
+    if (!canUploadDocuments) {
+      showNotification({
+        type: 'error',
+        title: 'Select an Insurance Plan',
+        message: 'Please select an insurance plan to view the required documents and enable uploads.',
+      })
+      return
+    }
+
     if (files.length === 0) {
       showNotification({
         type: 'error',
@@ -372,6 +383,15 @@ const PASubmissionForm: React.FC = () => {
     (files: FileList | null) => {
       if (!files) return
 
+      if (!canUploadDocuments) {
+        showNotification({
+          type: 'error',
+          title: 'Select an Insurance Plan',
+          message: 'Please choose a plan first so the required documents and upload workflow can be shown.',
+        })
+        return
+      }
+
       const newFiles: UploadedFile[] = []
       const fileErrors: string[] = []
 
@@ -404,7 +424,7 @@ const PASubmissionForm: React.FC = () => {
         void handleExtractCodes(allFiles)
       }
     },
-    [documents, setValue, showNotification]
+    [canUploadDocuments, documents, setValue, showNotification]
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -651,6 +671,7 @@ const PASubmissionForm: React.FC = () => {
                 value={field.value}
                 onChange={(value) => {
                   field.onChange(value)
+                  setHasSelectedPlan(false)
                   setValue('planId', '')
                 }}
                 options={payers?.map((p) => ({ value: p.id, label: p.name })) || []}
@@ -671,6 +692,7 @@ const PASubmissionForm: React.FC = () => {
 
             const handlePlanChange = (value: string) => {
               field.onChange(value)
+              setHasSelectedPlan(!!value)
               if (showProviderPlans) {
                 const selectedPlan = providerPlans.find((p) => p.id === value)
                 if (selectedPlan && selectedPlan.payerId) {
@@ -701,9 +723,9 @@ const PASubmissionForm: React.FC = () => {
             <p className="text-xs text-primary-700">Live metadata from the database</p>
           </div>
 
-          {!selectedPlanId ? (
+          {!canUploadDocuments ? (
             <div className="flex min-h-[14rem] items-center justify-center rounded-xl border border-dashed border-primary-200 bg-white/70 px-4 text-sm text-primary-700">
-              Select an insurance plan to view coverage, documents, and policy rules.
+              Please select an insurance plan to view coverage details, required documents, and policy rules.
             </div>
           ) : isPlanMetadataLoading ? (
             <div className="flex min-h-[14rem] items-center justify-center">
@@ -863,9 +885,11 @@ const PASubmissionForm: React.FC = () => {
               <div className="mt-2 space-y-1 text-sm">
                 <p className="text-blue-800">
                   <strong>Required:</strong>{' '}
-                  {documentRequirements.length > 0
-                    ? documentRequirements.slice(0, 8).map((item) => item.documentName).join(', ')
-                    : 'Clinical Notes, Patient Demographics'}
+                  {canUploadDocuments
+                    ? documentRequirements.length > 0
+                      ? documentRequirements.slice(0, 8).map((item) => item.documentName).join(', ')
+                      : 'Clinical Notes, Patient Demographics'
+                    : 'Select an insurance plan to load the required supporting documents.'}
                 </p>
                 <p className="text-blue-600">Accepted formats: PDF, JPEG, PNG, TIFF. Max size: 10MB per file.</p>
               </div>
@@ -882,22 +906,31 @@ const PASubmissionForm: React.FC = () => {
             border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 mb-4
             ${isDragging
               ? 'border-primary-500 bg-primary-50/50'
-              : 'border-neutral-300 hover:border-primary-400 hover:bg-neutral-50'
+              : canUploadDocuments
+                ? 'border-neutral-300 hover:border-primary-400 hover:bg-neutral-50'
+                : 'border-neutral-200 bg-neutral-50/70'
             }
           `}
         >
           <Upload className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
-          <p className="text-neutral-700 font-semibold mb-2">Drag and drop files here</p>
-          <p className="text-neutral-500 text-sm mb-4">or click to browse</p>
+          <p className="text-neutral-700 font-semibold mb-2">
+            {canUploadDocuments ? 'Drag and drop files here' : 'Select a plan to enable document upload'}
+          </p>
+          <p className="text-neutral-500 text-sm mb-4">
+            {canUploadDocuments
+              ? 'or click to browse'
+              : 'Choose an insurance plan first to see the required documents and upload options.'}
+          </p>
           <label className="cursor-pointer inline-flex relative">
             <input
               type="file"
               multiple
               accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif"
               onChange={handleFileSelect}
+              disabled={!canUploadDocuments}
               className="hidden"
             />
-            <span className="px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors shadow-sm opacity-100 visible z-10">
+            <span className={`px-4 py-2 rounded-lg shadow-sm z-10 transition-colors ${canUploadDocuments ? 'bg-primary-700 text-white hover:bg-primary-800 opacity-100 visible' : 'bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-80'}`}>
               Browse Files
             </span>
           </label>
@@ -943,7 +976,7 @@ const PASubmissionForm: React.FC = () => {
             className="shadow-card border border-neutral-200"
           >
             <div className="p-6 space-y-4">
-              {documents.length === 0 ? (
+              {!canUploadDocuments || documents.length === 0 ? (
                 // Placeholder State
                 <div className="border-2 border-dashed border-neutral-300 rounded-lg bg-gradient-to-br from-neutral-50 to-neutral-100 p-12 text-center">
                   <div className="flex justify-center mb-4">
@@ -951,9 +984,13 @@ const PASubmissionForm: React.FC = () => {
                       <Upload className="w-6 h-6 text-neutral-500" />
                     </div>
                   </div>
-                  <h5 className="text-lg font-semibold text-slate-900 mb-2">Ready to Process</h5>
+                  <h5 className="text-lg font-semibold text-slate-900 mb-2">
+                    {canUploadDocuments ? 'Ready to Process' : 'Select a Plan First'}
+                  </h5>
                   <p className="text-sm text-slate-500 mb-4">
-                    Upload clinical documents above to start the automated pipeline. Your documents will be processed through OCR extraction, AI analysis, and clinical scoring.
+                    {canUploadDocuments
+                      ? 'Upload the required clinical documents above to start the automated pipeline. Your documents will be processed through OCR extraction, AI analysis, and clinical scoring.'
+                      : 'Please select an insurance plan to view the required documents and unlock the upload workflow.'}
                   </p>
                   <div className="flex items-center justify-center gap-4 text-xs text-slate-500 mt-6">
                     <div className="flex flex-col items-center">
