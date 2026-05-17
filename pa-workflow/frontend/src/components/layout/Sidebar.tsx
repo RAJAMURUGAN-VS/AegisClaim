@@ -349,7 +349,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col fixed h-full bg-primary-900 text-white transition-all duration-200 ease-smooth z-40 ${sidebarWidth}`}
+        className={`hidden lg:flex flex-col fixed inset-y-0 left-0 h-full bg-primary-900 text-white transition-all duration-200 ease-smooth z-40 ${sidebarWidth}`}
       >
         <SidebarContent />
       </aside>
