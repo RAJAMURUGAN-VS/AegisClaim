@@ -120,6 +120,7 @@ const PASubmissionForm: React.FC = () => {
   const [pipelineOcrSteps, setPipelineOcrSteps] = useState(0)
   const [pipelineSonarSteps, setPipelineSonarSteps] = useState(0)
   const [hasSelectedPlan, setHasSelectedPlan] = useState(false)
+  const [showStartButton, setShowStartButton] = useState(false)
   const pipelineOcrMaxSteps = 7
   const pipelineSonarMaxSteps = 6
 
@@ -212,6 +213,11 @@ const PASubmissionForm: React.FC = () => {
 
 
   useEffect(() => {
+    // Only start animation if actually extracting
+    if (!isExtracting) {
+      return
+    }
+
     // Timers for pipeline preview animation
     let ocrInterval: number | null = null
     let sonarInterval: number | null = null
@@ -248,7 +254,7 @@ const PASubmissionForm: React.FC = () => {
       if (ocrInterval) window.clearInterval(ocrInterval)
       if (sonarInterval) window.clearInterval(sonarInterval)
     }
-  }, [isExtracting, documents.length])
+  }, [isExtracting])
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -421,7 +427,7 @@ const PASubmissionForm: React.FC = () => {
       if (newFiles.length > 0) {
         const allFiles = [...documents, ...newFiles.map((f) => f.file)]
         setValue('documents', allFiles, { shouldValidate: true })
-        void handleExtractCodes(allFiles)
+        setShowStartButton(true)
       }
     },
     [canUploadDocuments, documents, setValue, showNotification]
@@ -453,6 +459,9 @@ const PASubmissionForm: React.FC = () => {
   const removeFile = (index: number) => {
     const newFiles = documents.filter((_, i) => i !== index)
     setValue('documents', newFiles, { shouldValidate: true })
+    if (newFiles.length === 0) {
+      setShowStartButton(false)
+    }
   }
 
   const formatFileSize = (bytes: number): string => {
@@ -965,6 +974,24 @@ const PASubmissionForm: React.FC = () => {
                 </button>
               </div>
             ))}
+
+            {/* Start Processing Button */}
+            {showStartButton && !isExtracting && (
+              <div className="mt-4 pt-4 border-t border-neutral-200">
+                <Button
+                  onClick={() => {
+                    setShowStartButton(false)
+                    void handleExtractCodes(documents)
+                  }}
+                  variant="secondary"
+                  size="lg"
+                  icon={Sparkles}
+                  className="w-full"
+                >
+                  Start Processing Pipeline
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -976,8 +1003,8 @@ const PASubmissionForm: React.FC = () => {
             className="shadow-card border border-neutral-200"
           >
             <div className="p-6 space-y-4">
-              {!canUploadDocuments || documents.length === 0 ? (
-                // Placeholder State
+              {!isExtracting ? (
+                // Static/Placeholder State - Show until button is clicked
                 <div className="border-2 border-dashed border-neutral-300 rounded-lg bg-gradient-to-br from-neutral-50 to-neutral-100 p-12 text-center">
                   <div className="flex justify-center mb-4">
                     <div className="rounded-full bg-neutral-200 p-4">
@@ -985,12 +1012,10 @@ const PASubmissionForm: React.FC = () => {
                     </div>
                   </div>
                   <h5 className="text-lg font-semibold text-slate-900 mb-2">
-                    {canUploadDocuments ? 'Ready to Process' : 'Select a Plan First'}
+                    Ready to Process
                   </h5>
                   <p className="text-sm text-slate-500 mb-4">
-                    {canUploadDocuments
-                      ? 'Upload the required clinical documents above to start the automated pipeline. Your documents will be processed through OCR extraction, AI analysis, and clinical scoring.'
-                      : 'Please select an insurance plan to view the required documents and unlock the upload workflow.'}
+                    Upload the required clinical documents above to start the automated pipeline. Your documents will be processed through OCR extraction, AI analysis, and clinical scoring.
                   </p>
                   <div className="flex items-center justify-center gap-4 text-xs text-slate-500 mt-6">
                     <div className="flex flex-col items-center">
@@ -1010,7 +1035,7 @@ const PASubmissionForm: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                // Active Pipeline States
+                // Active Pipeline States - Only show when processing
                 <>
                   {/* OCR Stage */}
                   <div className="border border-blue-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-5 overflow-hidden">
