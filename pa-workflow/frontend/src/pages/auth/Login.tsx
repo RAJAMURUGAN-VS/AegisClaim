@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useProviderType } from '../../context/ProviderContext'
 import { Button } from '../../components/common/Button'
+import ThemeToggle from '../../components/common/ThemeToggle'
 
 type ProviderType = 'testing' | 'real'
 
@@ -114,7 +115,11 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative">
+      <div className="absolute right-4 top-4 z-20 lg:hidden">
+        <ThemeToggle />
+      </div>
+
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[45%] bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 relative overflow-hidden">
         {/* Abstract Background Pattern */}
@@ -177,7 +182,11 @@ const Login: React.FC = () => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center bg-white p-8 lg:p-12">
+      <div className="relative flex-1 flex items-center justify-center bg-white p-8 lg:p-12">
+        <div className="absolute right-8 top-8 hidden lg:block">
+          <ThemeToggle />
+        </div>
+
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
@@ -204,8 +213,8 @@ const Login: React.FC = () => {
                 type="button"
                 onClick={() => setProviderTypeState('testing')}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${providerType === 'testing'
-                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                    : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
                   }`}
               >
                 <Beaker className="w-4 h-4" />
@@ -215,8 +224,8 @@ const Login: React.FC = () => {
                 type="button"
                 onClick={() => setProviderTypeState('real')}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${providerType === 'real'
-                    ? 'bg-green-100 text-green-700 border border-green-300'
-                    : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
                   }`}
               >
                 <Users className="w-4 h-4" />

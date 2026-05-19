@@ -5,6 +5,21 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import App from './App.tsx'
 import './index.css'
 import { NotificationProvider } from './context/NotificationContext'
+import { ThemeProvider, applyThemeToDocument } from './context/ThemeContext'
+
+const themeKey = 'aegisclaim-theme'
+
+if (typeof window !== 'undefined') {
+  const storedTheme = window.localStorage.getItem(themeKey)
+  const preferredTheme =
+    storedTheme === 'light' || storedTheme === 'dark'
+      ? storedTheme
+      : window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+
+  applyThemeToDocument(preferredTheme)
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,9 +34,11 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <App />
-      </NotificationProvider>
+      <ThemeProvider>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   </React.StrictMode>,

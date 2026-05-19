@@ -12,9 +12,10 @@ import {
   Info,
   Clock,
   FileText,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import ThemeToggle from '../common/ThemeToggle'
 
 export interface HeaderProps {
   onMenuToggle: () => void
@@ -128,6 +129,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
+        <ThemeToggle />
+
         {/* Search Button */}
         <button
           className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
